@@ -32,12 +32,14 @@ export default defineConfig({
   /* Opt out of parallel tests on CI, unless the suite says otherwise */
   workers: suite?.workers ?? (process.env.CI ? 1 : undefined),
   /* Reporter to use. See https://playwright.dev/docs/test-reporters
-   * Suite runs write an HTML report and JUnit XML (like testng-results.xml) to reports/<suite>/. */
+   * Suite runs write an HTML report, JUnit XML (like testng-results.xml) and JSON
+   * (read by the report email) to reports/<suite>/. */
   reporter: suite
     ? [
         ['list'],
         ['html', { outputFolder: `${suiteReports}/html`, open: 'never' }],
         ['junit', { outputFile: `${suiteReports}/results.xml`, suiteName: suite.name }],
+        ['json', { outputFile: `${suiteReports}/results.json` }],
       ]
     : 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

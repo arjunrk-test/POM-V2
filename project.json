@@ -1,0 +1,25 @@
+{
+  "projectName": "OrangeHRM",
+  "description": "UI automation for the OrangeHRM web application",
+  "team": "QA Automation",
+  "environment": "QA",
+  "applicationUrl": "https://opensource-demo.orangehrmlive.com",
+
+  "email": {
+    "enabled": true,
+    "sendOn": "always",
+    "from": "QA Automation <arjun.s@mxtechies.com>",
+    "to": ["qa-lead@example.com", "dev-team@example.com", "arjun.s@mxtechies.com", "kavi.p@mxtechies.com"],
+    "cc": [],
+    "bcc": [],
+    "subjectPrefix": "[OrangeHRM QA]",
+    "attachReports": true,
+    "maxAttachmentMB": 10,
+    "reportUrl": "",
+    "smtp": {
+      "host": "smtp.office365.com",
+      "port": 587,
+      "secure": false
+    }
+  }
+}

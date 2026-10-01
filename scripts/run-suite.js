@@ -2,10 +2,13 @@
 // running testng.xml. Usage:
 //   suite.bat smoke              (or: npm run suite -- smoke)
 //   suite.bat smoke --headed     (extra arguments are passed to Playwright)
+//   suite.bat smoke --no-email   (don't send the report email)
+//   suite.bat smoke --email-dry-run   (build the email but don't send it)
 //
 // Before running, it checks that every test and file listed in the suite matches
 // a real test, so a typo fails loudly instead of the test silently not running.
-// Reports go to reports/<name>/html (HTML) and reports/<name>/results.xml (JUnit).
+// Reports go to reports/<name>/html (HTML) and reports/<name>/results.xml (JUnit),
+// then the results are emailed to the recipients in project.json.
 
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -14,14 +17,17 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const SUITES_DIR = path.join(ROOT, 'test-plans', 'suites');
 const PLAYWRIGHT_CLI = require.resolve('@playwright/test/cli');
+const { sendReport } = require('./send-report');
 
-const [suiteName, ...playwrightArgs] = process.argv.slice(2);
+const EMAIL_FLAGS = ['--no-email', '--email-dry-run'];
+const [suiteName, ...args] = process.argv.slice(2);
+const playwrightArgs = args.filter((arg) => !EMAIL_FLAGS.includes(arg));
 const available = fs.existsSync(SUITES_DIR)
   ? fs.readdirSync(SUITES_DIR).filter((f) => f.endsWith('.json')).map((f) => path.basename(f, '.json'))
   : [];
 
 if (!suiteName || suiteName.startsWith('-')) {
-  console.error('Usage: suite.bat <suite-name> [playwright options]');
+  console.error('Usage: suite.bat <suite-name> [--no-email] [--email-dry-run] [playwright options]');
   console.error(`Available suites: ${available.join(', ') || '(none)'}`);
   process.exit(1);
 }
@@ -85,4 +91,11 @@ const run = playwright(playwrightArgs, { stdio: 'inherit' });
 console.log('');
 console.log(`HTML report:  reports/${suiteName}/html/index.html  (open with: npx playwright show-report reports/${suiteName}/html)`);
 console.log(`JUnit report: reports/${suiteName}/results.xml`);
-process.exit(run.status ?? 1);
+
+// 3. Email the results. A failed email is reported but doesn't change the exit code,
+// which always reflects the test results.
+(async () => {
+  if (args.includes('--no-email')) console.log('Email: skipped (--no-email).');
+  else await sendReport(suiteName, { dryRun: args.includes('--email-dry-run') });
+  process.exit(run.status ?? 1);
+})();

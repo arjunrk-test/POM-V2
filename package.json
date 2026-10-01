@@ -12,6 +12,7 @@
     "test:edge": "playwright test --project=edge",
     "test:list": "playwright test --list",
     "suite": "node scripts/run-suite.js",
+    "send-report": "node scripts/send-report.js",
     "report": "playwright show-report",
     "codegen": "playwright codegen"
   },
@@ -21,6 +22,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@types/node": "^26.6.3"
+    "@types/node": "^26.6.3",
+    "nodemailer": "^10.0.13"
   }
 }
