@@ -1,0 +1,6 @@
+{
+  "defaultBrowsers": ["chrome"],
+  "tests": {
+    "user can log in with valid credentials": ["chrome", "edge"]
+  }
+}
