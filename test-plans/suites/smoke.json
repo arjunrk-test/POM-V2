@@ -1,0 +1,9 @@
+{
+  "name": "Smoke",
+  "workers": 2,
+  "retries": 0,
+  "files": [],
+  "tests": [
+    "user can log in with valid credentials"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Regression",
+  "retries": 1,
+  "files": [
+    "example.spec.js"
+  ],
+  "tests": []
+}

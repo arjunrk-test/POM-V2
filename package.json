@@ -11,6 +11,7 @@
     "test:chrome": "playwright test --project=chrome",
     "test:edge": "playwright test --project=edge",
     "test:list": "playwright test --list",
+    "suite": "node scripts/run-suite.js",
     "report": "playwright show-report",
     "codegen": "playwright codegen"
   },
