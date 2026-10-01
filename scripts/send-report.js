@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const { renderCharts } = require('./report-charts');
 
 const ROOT = path.resolve(__dirname, '..');
 const PROJECT_FILE = path.join(ROOT, 'project.json');
@@ -39,6 +40,7 @@ function summarize(resultsFile) {
           file: spec.file,
           browser: test.projectName,
           status: test.status, // expected | unexpected | flaky | skipped
+          durationMs: test.results.at(-1)?.duration ?? 0,
           error: error.replace(/\u001b\[[0-9;]*m/g, '').split('\n')[0],
         });
       }
@@ -69,6 +71,7 @@ function summarize(resultsFile) {
     flaky: count('flaky'),
     skipped: count('skipped'),
     browsers,
+    tests,
     failures: tests.filter((t) => t.status === 'unexpected'),
   };
 }
@@ -81,7 +84,11 @@ function formatDuration(ms) {
   return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
-function buildHtml(project, suiteName, summary, notes) {
+/**
+ * @param {{ cid: string, alt: string, width: number }[]} charts
+ * @param {(chart: { cid: string }) => string} chartSrc image URL for a chart (cid: in the email, a file in the preview)
+ */
+function buildHtml(project, suiteName, summary, notes, charts, chartSrc) {
   const passed = summary.failed === 0;
   const cell = 'style="padding:6px 12px;border:1px solid #ddd;"';
   const head = 'style="padding:6px 12px;border:1px solid #ddd;background:#f4f4f4;text-align:left;"';
@@ -110,6 +117,8 @@ function buildHtml(project, suiteName, summary, notes) {
   ${row('Started', summary.startTime.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}
   ${row('Duration', formatDuration(summary.durationMs))}
 </table>
+
+${charts.map((c) => `<p style="margin:0 0 20px;"><img src="${chartSrc(c)}" width="${c.width}" alt="${escapeHtml(c.alt)}" style="display:block;max-width:100%;height:auto;border:0;"></p>`).join('')}
 
 <h3 style="margin:16px 0 8px;">By browser</h3>
 <table style="border-collapse:collapse;">
@@ -180,12 +189,26 @@ async function sendReport(suiteName, { dryRun = false } = {}) {
 
     const notes = [];
     const attachments = collectAttachments(project, reportDir, suiteName, notes);
-    const html = buildHtml(project, suiteName, summary, notes);
+
+    /** @type {{ cid: string, file: string, alt: string, width: number }[]} */
+    let charts = [];
+    if (email.charts !== false) {
+      try {
+        charts = await renderCharts(summary, path.join(reportDir, 'charts'));
+      } catch (error) {
+        // Charts are a nice-to-have; the email still goes out with the tables.
+        console.error(`Email: charts could not be drawn, sending without them. ${String(error.message).split('\n')[0]}`);
+      }
+    }
+    const html = buildHtml(project, suiteName, summary, notes, charts, (c) => `cid:${c.cid}`);
     const status = summary.failed === 0 ? 'PASSED' : 'FAILED';
     const subject = `${email.subjectPrefix ? `${email.subjectPrefix} ` : ''}${suiteName} suite ${status}: ` +
       `${summary.passed}/${summary.total} passed${summary.failed ? `, ${summary.failed} failed` : ''}`;
 
-    fs.writeFileSync(path.join(reportDir, 'email.html'), html);
+    fs.writeFileSync(
+      path.join(reportDir, 'email.html'),
+      buildHtml(project, suiteName, summary, notes, charts, (c) => `charts/${c.cid}.png`),
+    );
 
     if (dryRun) {
       console.log(`Email (dry run, not sent): "${subject}"`);
@@ -214,7 +237,11 @@ async function sendReport(suiteName, { dryRun = false } = {}) {
       bcc: email.bcc,
       subject,
       html,
-      attachments,
+      attachments: [
+        ...attachments,
+        // Inline images, shown in the body via <img src="cid:...">.
+        ...charts.map((c) => ({ filename: `${c.cid}.png`, path: c.file, cid: c.cid, contentDisposition: 'inline' })),
+      ],
     });
     console.log(`Email: sent "${subject}" to ${[...email.to, ...(email.cc ?? [])].join(', ')}`);
     return true;

@@ -13,6 +13,7 @@
     "cc": [],
     "bcc": [],
     "subjectPrefix": "[OrangeHRM QA]",
+    "charts": true,
     "attachReports": true,
     "maxAttachmentMB": 10,
     "reportUrl": "",
