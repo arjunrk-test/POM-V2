@@ -170,7 +170,29 @@ async function renderCharts(summary, outDir) {
   if (summary.tests.filter((t) => t.status !== 'skipped').length >= 2) {
     charts.push({ cid: 'chart-durations', svg: slowestTests(summary), alt: 'Slowest test runs by duration' });
   }
+  return renderSvgs(charts, outDir);
+}
 
+/**
+ * Charts for the combined email of several suites.
+ * @param {{ total: number, passed: number, failed: number, flaky: number, skipped: number,
+ *           suites: { name: string, total: number, passed: number, failed: number, flaky: number, skipped: number }[] }} combined
+ */
+async function renderCombinedCharts(combined, outDir) {
+  return renderSvgs([
+    { cid: 'chart-overall', svg: statusDonut(combined),
+      alt: `Overall result: ${combined.passed} passed, ${combined.failed} failed, ${combined.flaky} flaky, ${combined.skipped} skipped` },
+    { cid: 'chart-suites', svg: statusBars(combined.suites, 'Results by suite'),
+      alt: `Results by suite: ${combined.suites.map((s) => `${s.name} ${s.passed}/${s.total} passed`).join(', ')}` },
+  ], outDir);
+}
+
+/**
+ * Renders SVG charts to PNG files in outDir.
+ * @param {{ cid: string, svg: string, alt: string }[]} charts
+ * @returns {Promise<{ cid: string, file: string, alt: string, width: number }[]>}
+ */
+async function renderSvgs(charts, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
   const browser = await launchBrowser();
   try {
@@ -189,4 +211,4 @@ async function renderCharts(summary, outDir) {
   }
 }
 
-module.exports = { renderCharts };
+module.exports = { renderCharts, renderCombinedCharts };

@@ -40,6 +40,8 @@ npm test                                 # run every test
 .\suite.bat regression --no-email        # run the regression suite without sending email
 .\suite.bat smoke --headed               # watch the browser while the suite runs
 .\suite.bat api                          # run all API tests, save reports, send the email
+.\suite.bat --all                        # run EVERY suite one after another, send ONE combined email
+.\suite.bat smoke api                    # run chosen suites one after another, one combined email
 npm run test:api                         # run all API tests (no suite)
 npm run api:start                        # start the demo API; Swagger UI at http://localhost:3001/docs
 start reports/smoke/dashboard.html               # open the dashboard of the last smoke run

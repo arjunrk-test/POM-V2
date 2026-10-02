@@ -16,7 +16,8 @@
     "report": "playwright show-report",
     "codegen": "playwright codegen",
     "test:api": "playwright test --project=api",
-    "api:start": "node api-server/server.js"
+    "api:start": "node api-server/server.js",
+    "suite:all": "node scripts/run-suite.js --all"
   },
   "keywords": [],
   "author": "",

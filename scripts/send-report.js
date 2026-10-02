@@ -1,4 +1,6 @@
-// Emails a suite's results to the people listed in project.json.
+// Emails suite results to the people listed in project.json: one suite's results,
+// or (sendCombinedReport, or several names on the command line) one combined email
+// for several suites, e.g. node scripts/send-report.js smoke regression api
 // Called automatically by run-suite.js after a suite run; can also be run on its own
 // to (re)send the last results of a suite:
 //   node scripts/send-report.js smoke
@@ -10,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
-const { renderCharts } = require('./report-charts');
+const { renderCharts, renderCombinedCharts } = require('./report-charts');
 
 const ROOT = path.resolve(__dirname, '..');
 const PROJECT_FILE = path.join(ROOT, 'project.json');
@@ -245,32 +247,7 @@ async function sendReport(suiteName, { dryRun = false } = {}) {
       return true;
     }
 
-    if (fs.existsSync(path.join(ROOT, '.env.local'))) process.loadEnvFile(path.join(ROOT, '.env.local'));
-    const { SMTP_USER, SMTP_PASS } = process.env;
-    if (!SMTP_USER || !SMTP_PASS) {
-      throw new Error('SMTP_USER and SMTP_PASS are not set. Fill them in in .env.local.');
-    }
-
-    const transport = nodemailer.createTransport({
-      host: email.smtp.host,
-      port: email.smtp.port,
-      secure: email.smtp.secure,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
-    await transport.sendMail({
-      from: email.from ?? SMTP_USER,
-      to: email.to,
-      cc: email.cc,
-      bcc: email.bcc,
-      subject,
-      html,
-      attachments: [
-        ...attachments,
-        // Inline images, shown in the body via <img src="cid:...">.
-        ...charts.map((c) => ({ filename: `${c.cid}.png`, path: c.file, cid: c.cid, contentDisposition: 'inline' })),
-      ],
-    });
-    console.log(`Email: sent "${subject}" to ${[...email.to, ...(email.cc ?? [])].join(', ')}`);
+    await deliver(email, { subject, html, attachments, charts });
     return true;
   } catch (error) {
     console.error(`Email: NOT sent. ${error.message}`);
@@ -278,13 +255,204 @@ async function sendReport(suiteName, { dryRun = false } = {}) {
   }
 }
 
-module.exports = { sendReport };
+/** Sends an email through the SMTP server in project.json, with the charts as inline images. */
+async function deliver(email, { subject, html, attachments, charts }) {
+  if (fs.existsSync(path.join(ROOT, '.env.local'))) process.loadEnvFile(path.join(ROOT, '.env.local'));
+  const { SMTP_USER, SMTP_PASS } = process.env;
+  if (!SMTP_USER || !SMTP_PASS) {
+    throw new Error('SMTP_USER and SMTP_PASS are not set. Fill them in in .env.local.');
+  }
+
+  const transport = nodemailer.createTransport({
+    host: email.smtp.host,
+    port: email.smtp.port,
+    secure: email.smtp.secure,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+  await transport.sendMail({
+    from: email.from ?? SMTP_USER,
+    to: email.to,
+    cc: email.cc,
+    bcc: email.bcc,
+    subject,
+    html,
+    attachments: [
+      ...attachments,
+      // Inline images, shown in the body via <img src="cid:...">.
+      ...charts.map((c) => ({ filename: `${c.cid}.png`, path: c.file, cid: c.cid, contentDisposition: 'inline' })),
+    ],
+  });
+  console.log(`Email: sent "${subject}" to ${[...email.to, ...(email.cc ?? [])].join(', ')}`);
+}
+
+// ---------- combined email for several suites ----------
+
+const COMBINED_DIR = path.join(ROOT, 'reports', 'all-suites');
+
+function buildCombinedHtml(project, combined, notes, charts, chartSrc) {
+  const passed = combined.failed === 0 && combined.missing.length === 0;
+  const cell = 'style="padding:6px 12px;border:1px solid #ddd;"';
+  const head = 'style="padding:6px 12px;border:1px solid #ddd;background:#f4f4f4;text-align:left;"';
+  const row = (label, value) => `<tr><th ${head}>${escapeHtml(label)}</th><td ${cell}>${escapeHtml(value)}</td></tr>`;
+  const badge = (ok) => `<span style="font-weight:bold;color:${ok ? '#1a7f37' : '#cf222e'};">${ok ? 'PASSED' : 'FAILED'}</span>`;
+
+  const suiteRows = combined.suites.map((s) => `<tr><td ${cell}><b>${escapeHtml(s.name)}</b></td><td ${cell}>${badge(s.failed === 0)}</td>` +
+    `<td ${cell}>${s.total}</td><td ${cell}>${s.passed}</td><td ${cell}>${s.failed}</td><td ${cell}>${s.flaky}</td>` +
+    `<td ${cell}>${s.skipped}</td><td ${cell}>${formatDuration(s.durationMs)}</td></tr>`).join('');
+  const failureRows = combined.failures.map((f) => `<tr><td ${cell}>${escapeHtml(f.suite)}</td>` +
+    `<td ${cell}>${escapeHtml(f.title)}<br><small style="color:#666;">${escapeHtml(f.file)}</small></td>` +
+    `<td ${cell}>${escapeHtml(f.browser)}</td><td ${cell}><code>${escapeHtml(f.error)}</code></td></tr>`).join('');
+
+  return `<!doctype html>
+<html><body style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#222;">
+<h2 style="margin:0 0 4px;">${escapeHtml(project.projectName)}: ${combined.suites.length} suites</h2>
+<p style="margin:0 0 16px;font-size:16px;font-weight:bold;color:${passed ? '#1a7f37' : '#cf222e'};">
+  ${passed ? 'PASSED' : 'FAILED'}: ${combined.passed} of ${combined.total} passed${combined.failed ? `, ${combined.failed} failed` : ''}${combined.flaky ? `, ${combined.flaky} flaky` : ''}
+</p>
+
+<table style="border-collapse:collapse;margin-bottom:16px;">
+  ${row('Suites', combined.suites.map((s) => s.name).join(', '))}
+  ${row('Environment', project.environment ?? '-')}
+  ${row('Application', project.applicationUrl ?? '-')}
+  ${row('Started', combined.startTime.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}
+  ${row('Total duration', formatDuration(combined.durationMs))}
+</table>
+
+${charts.map((c) => `<p style="margin:0 0 20px;"><img src="${chartSrc(c)}" width="${c.width}" alt="${escapeHtml(c.alt)}" style="display:block;max-width:100%;height:auto;border:0;"></p>`).join('')}
+
+<h3 style="margin:16px 0 8px;">By suite</h3>
+<table style="border-collapse:collapse;">
+  <tr><th ${head}>Suite</th><th ${head}>Result</th><th ${head}>Total</th><th ${head}>Passed</th><th ${head}>Failed</th><th ${head}>Flaky</th><th ${head}>Skipped</th><th ${head}>Duration</th></tr>
+  ${suiteRows}
+</table>
+
+${combined.missing.length ? `<p style="color:#cf222e;font-weight:bold;">No results for: ${escapeHtml(combined.missing.join(', '))} (the suite did not produce a report; check the console output).</p>` : ''}
+
+${combined.failures.length ? `<h3 style="margin:16px 0 8px;">Failed tests</h3>
+<table style="border-collapse:collapse;">
+  <tr><th ${head}>Suite</th><th ${head}>Test</th><th ${head}>Browser / project</th><th ${head}>Error</th></tr>
+  ${failureRows}
+</table>` : ''}
+
+${project.email.reportUrl ? `<p style="margin-top:16px;">Full reports: <a href="${escapeHtml(project.email.reportUrl)}">${escapeHtml(project.email.reportUrl)}</a></p>` : ''}
+${notes.map((n) => `<p style="color:#666;">${escapeHtml(n)}</p>`).join('')}
+<p style="color:#999;font-size:12px;margin-top:24px;">Sent automatically by the ${escapeHtml(project.team ?? 'test automation')} framework.</p>
+</body></html>`;
+}
+
+/**
+ * Sends ONE email covering several suites that ran one after another.
+ * @param {string[]} suiteNames
+ * @param {{ dryRun?: boolean }} [options]
+ * @returns {Promise<boolean>}
+ */
+async function sendCombinedReport(suiteNames, { dryRun = false } = {}) {
+  try {
+    const project = loadProject();
+    const email = project.email ?? {};
+    if (!email.enabled) {
+      console.log('Email: disabled in project.json, not sending.');
+      return true;
+    }
+
+    const suites = [];
+    const missing = [];
+    for (const name of suiteNames) {
+      const resultsFile = path.join(ROOT, 'reports', name, 'results.json');
+      if (!fs.existsSync(resultsFile)) { missing.push(name); continue; }
+      suites.push({ name, summary: summarize(resultsFile) });
+    }
+    if (!suites.length) throw new Error(`No results found for any of: ${suiteNames.join(', ')}. Run the suites first.`);
+
+    const sum = (key) => suites.reduce((n, s) => n + s.summary[key], 0);
+    const combined = {
+      total: sum('total'), passed: sum('passed'), failed: sum('failed'), flaky: sum('flaky'), skipped: sum('skipped'),
+      startTime: new Date(Math.min(...suites.map((s) => s.summary.startTime.getTime()))),
+      durationMs: sum('durationMs'),
+      suites: suites.map(({ name, summary: s }) => ({
+        name, total: s.total, passed: s.passed, failed: s.failed, flaky: s.flaky, skipped: s.skipped, durationMs: s.durationMs,
+      })),
+      failures: suites.flatMap(({ name, summary }) => summary.failures.map((f) => ({ ...f, suite: name }))),
+      missing,
+    };
+
+    if (email.sendOn === 'failure' && combined.failed === 0 && missing.length === 0) {
+      console.log('Email: all tests passed and sendOn is "failure", not sending.');
+      return true;
+    }
+
+    // Attach each suite's dashboard and JUnit XML, within the size limit.
+    const notes = [];
+    const limit = (email.maxAttachmentMB ?? 10) * 1024 * 1024;
+    let used = 0;
+    const attachments = [];
+    if (email.attachReports) {
+      for (const { name } of suites) {
+        for (const file of [
+          { filename: `${name}-dashboard.html`, path: path.join(ROOT, 'reports', name, 'dashboard.html') },
+          { filename: `${name}-results.xml`, path: path.join(ROOT, 'reports', name, 'results.xml') },
+        ]) {
+          if (!fs.existsSync(file.path)) continue;
+          const size = fs.statSync(file.path).size;
+          if (used + size > limit) {
+            notes.push(`${file.filename} was not attached: the attachments would exceed ${email.maxAttachmentMB ?? 10} MB in total.`);
+            continue;
+          }
+          used += size;
+          attachments.push(file);
+        }
+      }
+      if (attachments.some((a) => a.filename.endsWith('-dashboard.html'))) {
+        notes.push('Each suite\'s dashboard is attached (<suite>-dashboard.html): open it in a browser for charts, the timeline and every test\'s details. Playwright HTML reports and traces stay in reports/<suite>/ on the machine that ran the suites.');
+      }
+    }
+
+    /** @type {{ cid: string, file: string, alt: string, width: number }[]} */
+    let charts = [];
+    if (email.charts !== false) {
+      try {
+        charts = await renderCombinedCharts(combined, path.join(COMBINED_DIR, 'charts'));
+      } catch (error) {
+        console.error(`Email: charts could not be drawn, sending without them. ${String(error.message).split('\n')[0]}`);
+      }
+    }
+
+    const status = combined.failed === 0 && missing.length === 0 ? 'PASSED' : 'FAILED';
+    const subject = `${email.subjectPrefix ? `${email.subjectPrefix} ` : ''}${suites.length} suites ${status} ` +
+      `(${combined.suites.map((s) => s.name).join(', ')}): ${combined.passed}/${combined.total} passed` +
+      `${combined.failed ? `, ${combined.failed} failed` : ''}`;
+    const html = buildCombinedHtml(project, combined, notes, charts, (c) => `cid:${c.cid}`);
+
+    fs.mkdirSync(COMBINED_DIR, { recursive: true });
+    fs.writeFileSync(path.join(COMBINED_DIR, 'email.html'), buildCombinedHtml(project, combined, notes, charts, (c) => `charts/${c.cid}.png`));
+
+    if (dryRun) {
+      console.log(`Email (dry run, not sent): "${subject}"`);
+      console.log(`  to: ${email.to.join(', ')}`);
+      console.log(`  attachments: ${attachments.map((a) => a.filename).join(', ') || '(none)'}`);
+      console.log('  preview: reports/all-suites/email.html');
+      return true;
+    }
+
+    await deliver(email, { subject, html, attachments, charts });
+    return true;
+  } catch (error) {
+    console.error(`Email: NOT sent. ${error.message}`);
+    return false;
+  }
+}
+
+module.exports = { sendReport, sendCombinedReport };
 
 if (require.main === module) {
-  const [suiteName, ...flags] = process.argv.slice(2);
-  if (!suiteName) {
-    console.error('Usage: node scripts/send-report.js <suite-name> [--dry-run]');
+  const args = process.argv.slice(2);
+  const names = args.filter((a) => !a.startsWith('-'));
+  const dryRun = args.includes('--dry-run');
+  if (!names.length) {
+    console.error('Usage: node scripts/send-report.js <suite> [<suite> ...] [--dry-run]');
     process.exit(1);
   }
-  sendReport(suiteName, { dryRun: flags.includes('--dry-run') }).then((ok) => process.exit(ok ? 0 : 1));
+  // One suite: its own email. Several: one combined email.
+  const send = names.length === 1 ? sendReport(names[0], { dryRun }) : sendCombinedReport(names, { dryRun });
+  send.then((ok) => process.exit(ok ? 0 : 1));
 }

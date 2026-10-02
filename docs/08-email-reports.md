@@ -29,6 +29,34 @@ After every suite run, the results are emailed to the project's mailing list. Th
 
 Colours in the charts: green = passed, red = failed, amber = flaky, grey = skipped. Each colour always has its text label next to it.
 
+## Combined email for several suites
+
+When several suites run with one command (`.\suite.bat --all` or `.\suite.bat smoke regression api`), **one** email is sent at the end instead of one per suite.
+
+**Subject**, for example:
+```
+[OrangeHRM QA] 3 suites PASSED (api, regression, smoke): 46/46 passed
+[OrangeHRM QA] 3 suites FAILED (api, regression, smoke): 45/46 passed, 1 failed
+```
+
+**Body:**
+1. **Headline:** PASSED / FAILED with the totals across all suites.
+2. **Run details:** the suites, environment, application, start time, total duration.
+3. **Overall result** donut: all suites together.
+4. **Results by suite** chart: one bar per suite, split by result.
+5. **By suite** table: each suite's result (PASSED / FAILED), counts and duration.
+6. **Failed tests** table, with a **Suite** column saying where each failure happened.
+
+**Attachments:** each suite's dashboard (`<suite>-dashboard.html`) and JUnit XML (`<suite>-results.xml`). `maxAttachmentMB` applies to the **total** of all attachments; files that don't fit are listed in the email instead. The Playwright HTML reports aren't attached (they stay in `reports/<suite>/html`), to keep the email small.
+
+The preview and chart images are saved in `reports/all-suites/` (so don't name a suite `all-suites`).
+
+To re-send the combined email for the last runs of several suites without running them again:
+```powershell
+npm run send-report -- smoke regression api
+npm run send-report -- smoke regression api --dry-run
+```
+
 ## `project.json`
 
 Lives in the project root. Current content:

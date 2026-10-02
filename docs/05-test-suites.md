@@ -132,12 +132,42 @@ Other forms:
 | `.\suite.bat smoke --headed` | Show the browsers while the tests run |
 | `.\suite.bat smoke --project=edge` | Run only the suite's Edge tests |
 | `.\suite.bat smoke -g "log in"` | Run only the suite's tests whose title contains "log in" |
+| `.\suite.bat smoke regression api` | Run these suites one after another, one combined email |
+| `.\suite.bat --all` | Run every suite one after another, one combined email |
 | `.\suite.bat` | Show usage and the list of available suites |
 | `npm run suite -- smoke` | Same as `.\suite.bat smoke`; works on macOS/Linux and CI too |
 
 Any option that isn't `--no-email` or `--email-dry-run` is passed straight to Playwright, so all of Playwright's [command-line options](https://playwright.dev/docs/test-cli) work.
 
 In **Command Prompt** (cmd) type `suite.bat smoke`; in **PowerShell** type `.\suite.bat smoke` (PowerShell needs the `.\` to run a file in the current folder).
+
+## Running several suites with one command
+
+Like a TestNG master `testng.xml` that lists other suite files, you can run several suites back to back:
+
+```powershell
+.\suite.bat --all                     # every suite in test-plans/suites/, in alphabetical order
+.\suite.bat smoke regression api      # these suites, in this order
+npm run suite:all                     # same as .\suite.bat --all
+```
+
+What happens:
+1. **Every suite is checked first.** If any suite has a problem (unknown name, a test that doesn't exist…), nothing runs and the errors are listed.
+2. **The suites run one after another**, each with its own `workers` and `retries`. A suite with failures **doesn't stop** the next one.
+3. **Each suite writes its own reports** to `reports/<suite>/` as usual (dashboard, HTML report, JUnit XML).
+4. A **summary** is printed:
+   ```
+   === Summary ===
+     PASSED  api
+     FAILED  regression
+     PASSED  smoke
+   ```
+5. **One combined email** is sent for the whole run (see [Email reports](08-email-reports.md#combined-email-for-several-suites)) instead of one email per suite.
+6. The exit code is **0** only if every suite passed, otherwise **1**.
+
+All the usual options work and apply to every suite: `--no-email`, `--email-dry-run`, `--headed`, `--project=edge`, `-g "..."`. Put the suite names **first** and the options after them.
+
+To run a fixed set every night, schedule `suite.bat` with the arguments `--all` (or `smoke regression api`) in Windows Task Scheduler (see [below](#running-a-suite-on-a-schedule-windows)).
 
 ## What happens during a suite run
 
