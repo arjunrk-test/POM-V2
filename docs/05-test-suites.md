@@ -155,6 +155,7 @@ What happens:
 1. **Every suite is checked first.** If any suite has a problem (unknown name, a test that doesn't exist…), nothing runs and the errors are listed.
 2. **The suites run one after another**, each with its own `workers` and `retries`. A suite with failures **doesn't stop** the next one.
 3. **Each suite writes its own reports** to `reports/<suite>/` as usual (dashboard, HTML report, JUnit XML).
+   After the last suite, the dashboards are merged into **one consolidated dashboard**: `reports/all-suites/dashboard.html` (see [Reports](07-reports.md#consolidated-dashboard-for-several-suites)).
 4. A **summary** is printed:
    ```
    === Summary ===

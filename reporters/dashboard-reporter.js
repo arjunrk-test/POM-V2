@@ -67,6 +67,9 @@ class DashboardReporter {
 
     fs.mkdirSync(path.dirname(outputFile), { recursive: true });
     fs.writeFileSync(outputFile, html);
+    // The raw data too, so several suites' dashboards can be merged into one
+    // (scripts/combine-dashboards.js).
+    fs.writeFileSync(outputFile.replace(/\.html$/, '-data.json'), JSON.stringify(data));
   }
 
   collect(result, configDir) {

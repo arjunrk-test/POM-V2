@@ -47,9 +47,9 @@ When several suites run with one command (`.\suite.bat --all` or `.\suite.bat sm
 5. **By suite** table: each suite's result (PASSED / FAILED), counts and duration.
 6. **Failed tests** table, with a **Suite** column saying where each failure happened.
 
-**Attachments:** each suite's dashboard (`<suite>-dashboard.html`) and JUnit XML (`<suite>-results.xml`). `maxAttachmentMB` applies to the **total** of all attachments; files that don't fit are listed in the email instead. The Playwright HTML reports aren't attached (they stay in `reports/<suite>/html`), to keep the email small.
+**Attachment:** one **consolidated dashboard**, `all-suites-dashboard.html`, covering every suite in the run (see [Reports](07-reports.md#consolidated-dashboard-for-several-suites)). If it's bigger than `maxAttachmentMB`, it isn't attached and the email says so. The per-suite dashboards, Playwright HTML reports and JUnit XML files stay in `reports/<suite>/` on the machine that ran the suites.
 
-The preview and chart images are saved in `reports/all-suites/` (so don't name a suite `all-suites`).
+The consolidated dashboard, the email preview and the chart images are saved in `reports/all-suites/` (so don't name a suite `all-suites`).
 
 To re-send the combined email for the last runs of several suites without running them again:
 ```powershell

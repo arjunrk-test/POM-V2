@@ -20,6 +20,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SUITES_DIR = path.join(ROOT, 'test-plans', 'suites');
 const PLAYWRIGHT_CLI = require.resolve('@playwright/test/cli');
 const { sendReport, sendCombinedReport } = require('./send-report');
+const { buildCombinedDashboard } = require('./combine-dashboards');
 
 const OWN_FLAGS = ['--no-email', '--email-dry-run', '--all'];
 const args = process.argv.slice(2);
@@ -122,6 +123,8 @@ for (const [index, { name, found, displayName }] of checked.entries()) {
 if (results.length > 1) {
   console.log('\n=== Summary ===');
   for (const r of results) console.log(`  ${r.status === 0 ? 'PASSED' : 'FAILED'}  ${r.name}`);
+  const combined = buildCombinedDashboard(results.map((r) => r.name));
+  if (combined) console.log(`\nConsolidated dashboard: reports/all-suites/dashboard.html  (every suite in one report)`);
 }
 
 // 3. Email the results: one email per run (combined when several suites ran).

@@ -139,6 +139,7 @@ button.tile:hover { border-color: var(--tile-color, var(--accent)); }
 .s-failed { background: var(--failed-bg); color: var(--failed-ink); }
 .s-flaky { background: var(--flaky-bg); color: var(--flaky-ink); }
 .s-skipped { background: var(--skipped-bg); color: var(--skipped-ink); }
+.suite-tag { background: var(--surface-2) !important; color: var(--text-2) !important; border: 1px solid var(--border); }
 .tag { display: inline-block; padding: 0 7px; border-radius: 5px; background: var(--accent-bg); color: var(--accent); font-size: 11.5px; font-weight: 600; }
 .browser { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); white-space: nowrap; }
 .browser i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
@@ -289,7 +290,13 @@ const truncate = (text, max) => {
 const fullTitle = (t) => [...t.groups, t.title].join(' › ');
 const statusChip = (s) => `<span class="chip s-${s}">${icon(s, 12)}${esc(STATUSES.find((x) => x.key === s)?.label ?? s)}</span>`;
 const attemptStatus = (a) => (a.status === 'passed' ? 'passed' : a.status === 'skipped' || a.status === 'interrupted' ? 'skipped' : 'failed');
-const reportLink = (t) => (DATA.run.htmlReport ? `${DATA.run.htmlReport}#?testId=${encodeURIComponent(t.id)}` : '');
+const reportLink = (t) => {
+  const base = t.htmlReport ?? DATA.run.htmlReport;
+  return base ? `${base}#?testId=${encodeURIComponent(t.reportId ?? t.id)}` : '';
+};
+/** True for the consolidated dashboard of several suites (built by scripts/combine-dashboards.js). */
+const isCombined = () => Array.isArray(DATA?.suites);
+const suiteTag = (t) => (t.suite ? `<span class="tag suite-tag">${esc(t.suite)}</span>` : '');
 
 function countBy(tests) {
   const c = { total: tests.length, passed: 0, failed: 0, flaky: 0, skipped: 0 };
@@ -310,7 +317,7 @@ function groupBy(tests, key) {
 }
 
 // ---------- state ----------
-const state = { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '', sort: 'default', dir: 1, open: new Set(), attempt: {} };
+const state = { status: 'all', browser: 'all', file: 'all', tag: 'all', suite: 'all', q: '', sort: 'default', dir: 1, open: new Set(), attempt: {} };
 
 // ---------- render: page ----------
 function render() {
@@ -323,7 +330,9 @@ function render() {
   const c = countBy(tests);
   const runFailed = c.failed > 0 || DATA.run.status !== 'passed';
   const label = c.failed > 0 ? 'FAILED' : DATA.run.status === 'passed' ? 'PASSED' : DATA.run.status.toUpperCase();
-  const title = DATA.run.suite ? `${esc(DATA.project.name)} <span class="suite">· ${esc(DATA.run.suite)} suite</span>` : esc(DATA.project.name);
+  const title = isCombined()
+    ? `${esc(DATA.project.name)} <span class="suite">· ${DATA.suites.length} suites</span>`
+    : DATA.run.suite ? `${esc(DATA.project.name)} <span class="suite">· ${esc(DATA.run.suite)} suite</span>` : esc(DATA.project.name);
   document.title = `${DATA.project.name}${DATA.run.suite ? ` · ${DATA.run.suite}` : ''}: ${label}`;
   const env = DATA.environment;
   const hasApi = tests.some((t) => t.browser === 'api');
@@ -363,6 +372,7 @@ function render() {
       <div class="section-head"><h2>Results at a glance</h2><span class="hint">Hover for details · click a bar to filter the test list</span></div>
       <div class="charts">
         <div class="card card-pad chart"><h3>Overall result</h3><div class="sub">${c.total} test run${c.total === 1 ? '' : 's'} across ${env.browsers.length} browser${env.browsers.length === 1 ? '' : 's'}</div><div id="ch-donut"></div></div>
+        ${isCombined() ? `<div class="card card-pad chart"><h3>Results by suite</h3><div class="sub">Test runs per suite, split by result</div>${legendHtml()}<div id="ch-suite"></div></div>` : ''}
         <div class="card card-pad chart"><h3>${hasApi ? 'Results by browser / API' : 'Results by browser'}</h3><div class="sub">Test runs per ${hasApi ? 'project' : 'browser'}, split by result</div>${legendHtml()}<div id="ch-browser"></div></div>
         ${hasApi ? `<div class="card card-pad chart"><h3>API tests by method</h3><div class="sub">API test runs per method folder (tests/api/&lt;method&gt;/), split by result</div>${legendHtml()}<div id="ch-api"></div></div>` : ''}
         <div class="card card-pad chart"><h3>Results by spec file</h3><div class="sub">Test runs per file, split by result</div>${legendHtml()}<div id="ch-file"></div></div>
@@ -446,7 +456,7 @@ function failuresHtml(tests) {
       <div class="failure-head">
         <div>
           <div class="failure-title">${esc(fullTitle(t))}</div>
-          <div class="failure-where"><span class="browser"><i></i>${esc(t.browser)}</span><span>${esc(t.file)}:${t.line}</span>${t.attempts.length > 1 ? `<span>${t.attempts.length} attempts</span>` : ''}<span>${esc(dur(t.duration))}</span></div>
+          <div class="failure-where">${suiteTag(t)}<span class="browser"><i></i>${esc(t.browser)}</span><span>${esc(t.file)}:${t.line}</span>${t.attempts.length > 1 ? `<span>${t.attempts.length} attempts</span>` : ''}<span>${esc(dur(t.duration))}</span></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="link-btn" data-show-test="${esc(t.id)}">Show details</button>
@@ -462,7 +472,9 @@ function failuresHtml(tests) {
 function envHtml() {
   const e = DATA.environment;
   const rows = [
-    ['Suite', DATA.run.suite || 'All tests (no suite)'],
+    isCombined()
+      ? ['Suites', DATA.suites.map((sx) => `${sx.name} (${sx.status}, ${dur(sx.duration)})`).join(' · ')]
+      : ['Suite', DATA.run.suite || 'All tests (no suite)'],
     ['Run status', DATA.run.status],
     ['Started', when(DATA.run.startTime)],
     ['Finished', when(DATA.run.startTime + DATA.run.duration)],
@@ -491,6 +503,12 @@ function renderCharts() {
   const byFile = [...groupBy(tests, (t) => t.file)].map(([name, list]) => ({ label: name, counts: countBy(list), filter: { file: name } }))
     .sort((a, b) => b.counts.failed - a.counts.failed || b.counts.total - a.counts.total);
   stackedBars(document.getElementById('ch-file'), byFile);
+  const suiteEl = document.getElementById('ch-suite');
+  if (suiteEl) {
+    stackedBars(suiteEl, DATA.suites.map((sx) => ({
+      label: sx.name, counts: countBy(tests.filter((t) => t.suite === sx.name)), filter: { suite: sx.name },
+    })));
+  }
   const apiEl = document.getElementById('ch-api');
   if (apiEl) {
     const order = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'flows'];
@@ -584,7 +602,7 @@ function slowest(el, tests, limit = 10) {
     const y = i * (barH + gapY);
     const w = Math.max((t.duration / max) * plotW, 2);
     const r = Math.min(4, w / 2);
-    const label = `${t.title} · ${t.browser}`;
+    const label = `${t.title} · ${t.browser}${t.suite ? ` · ${t.suite}` : ''}`;
     return `<text x="${labelW - 10}" y="${y + 12}" text-anchor="end" font-size="12" fill="${text}"><title>${esc(fullTitle(t))} · ${esc(t.browser)}</title>${esc(truncate(label, chars))}</text>
       <path class="mark" d="M${labelW},${y} h${w - r} a${r},${r} 0 0 1 ${r},${r} v${barH - 2 * r} a${r},${r} 0 0 1 ${-r},${r} h${-(w - r)} z" fill="${accent}"
         data-show-test="${esc(t.id)}" data-tip="${esc(fullTitle(t))}\n${esc(t.browser)} · ${esc(dur(t.duration))}${t.attempts.length > 1 ? ` · ${t.attempts.length} attempts` : ''}\n${esc(t.file)}:${t.line}"/>
@@ -637,7 +655,8 @@ function filtered() {
     (state.browser === 'all' || t.browser === state.browser) &&
     (state.file === 'all' || t.file === state.file) &&
     (state.tag === 'all' || t.tags.includes(state.tag)) &&
-    (!q || `${fullTitle(t)} ${t.file} ${t.browser} ${t.tags.join(' ')}`.toLowerCase().includes(q)));
+    (state.suite === 'all' || t.suite === state.suite) &&
+    (!q || `${fullTitle(t)} ${t.file} ${t.browser} ${t.tags.join(' ')} ${t.suite ?? ''}`.toLowerCase().includes(q)));
   const order = { failed: 0, flaky: 1, passed: 2, skipped: 3 };
   const key = {
     default: (t) => order[t.status] * 1e9 - t.duration,
@@ -660,7 +679,7 @@ function renderTable() {
   const files = [...new Set(all.map((t) => t.file))].sort();
   const tags = [...new Set(all.flatMap((t) => t.tags))].sort();
   const maxDur = Math.max(...all.map((t) => t.duration), 1);
-  const active = state.status !== 'all' || state.browser !== 'all' || state.file !== 'all' || state.tag !== 'all' || state.q;
+  const active = state.status !== 'all' || state.browser !== 'all' || state.file !== 'all' || state.tag !== 'all' || state.suite !== 'all' || state.q;
   const sortBtn = (key, label) => `<button type="button" data-sort="${key}">${label}${icon('sort', 11)}</button>`;
   const opt = (value, label, current) => `<option value="${esc(value)}"${value === current ? ' selected' : ''}>${esc(label)}</option>`;
 
@@ -670,6 +689,7 @@ function renderTable() {
         <button type="button" data-filter-status="all" aria-pressed="${state.status === 'all'}">All <span class="count">${counts.total}</span></button>
         ${STATUSES.map((s) => `<button type="button" data-filter-status="${s.key}" aria-pressed="${state.status === s.key}"><i class="swatch" style="background:var(--${s.key})"></i>${s.label} <span class="count">${counts[s.key]}</span></button>`).join('')}
       </div>
+      ${isCombined() ? `<select class="field" id="f-suite" aria-label="Suite">${opt('all', 'All suites', state.suite)}${DATA.suites.map((sx) => opt(sx.name, sx.name, state.suite)).join('')}</select>` : ''}
       <select class="field" id="f-browser" aria-label="Browser">${opt('all', 'All browsers', state.browser)}${browsers.map((b) => opt(b, b, state.browser)).join('')}</select>
       <select class="field" id="f-file" aria-label="Spec file">${opt('all', 'All files', state.file)}${files.map((f) => opt(f, f, state.file)).join('')}</select>
       ${tags.length ? `<select class="field" id="f-tag" aria-label="Tag">${opt('all', 'All tags', state.tag)}${tags.map((g) => opt(g, g, state.tag)).join('')}</select>` : ''}
@@ -699,11 +719,11 @@ function renderTable() {
     again.focus();
     again.setSelectionRange(pos, pos);
   });
-  for (const [id, key] of [['f-browser', 'browser'], ['f-file', 'file'], ['f-tag', 'tag']]) {
+  for (const [id, key] of [['f-suite', 'suite'], ['f-browser', 'browser'], ['f-file', 'file'], ['f-tag', 'tag']]) {
     document.getElementById(id)?.addEventListener('change', (e) => { state[key] = e.target.value; renderTable(); });
   }
   document.getElementById('f-clear')?.addEventListener('click', () => {
-    Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '' });
+    Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', suite: 'all', q: '' });
     renderTable();
   });
   card.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
@@ -731,7 +751,7 @@ function rowHtml(t, maxDur) {
       <td><span class="chev">${icon('chevron', 14)}</span></td>
       <td>${statusChip(t.status)}</td>
       <td><div class="t-title">${groups}${esc(t.title)}</div>
-        <div class="t-file"><span>${esc(t.file)}:${t.line}</span>${t.tags.map((g) => `<span class="tag">${esc(g)}</span>`).join('')}</div></td>
+        <div class="t-file">${suiteTag(t)}<span>${esc(t.file)}:${t.line}</span>${t.tags.map((g) => `<span class="tag">${esc(g)}</span>`).join('')}</div></td>
       <td class="col-browser"><span class="browser"><i></i>${esc(t.browser)}</span></td>
       <td class="num"><div class="dur">${esc(dur(t.duration))}</div><div class="dur-bar"><span style="width:${(t.duration / maxDur) * 100}%"></span></div></td>
       <td class="num col-attempts">${t.attempts.length}</td>
@@ -764,6 +784,7 @@ function detailHtml(t) {
       <div>
         <h4>Details</h4>
         <dl class="kv">
+          ${t.suite ? `<dt>Suite</dt><dd>${esc(t.suite)}</dd>` : ''}
           <dt>Test</dt><dd>${esc(fullTitle(t))}</dd>
           <dt>File</dt><dd>${esc(t.file)}:${t.line}</dd>
           <dt>${t.browser === 'api' ? 'Project' : 'Browser'}</dt><dd>${esc(t.browser === 'api' ? 'api (no browser)' : t.browser)}</dd>
@@ -790,7 +811,7 @@ function detailHtml(t) {
 
 // ---------- interactions ----------
 function showTest(id) {
-  Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '' });
+  Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', suite: 'all', q: '' });
   state.open.add(id);
   renderTable();
   document.querySelector(`tr.row[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -800,12 +821,13 @@ function applyFilter(el) {
   const d = el.dataset;
   // The result buttons in the table toolbar only change the result filter.
   if (el.closest('#table-card')) { state.status = d.filterStatus; renderTable(); return; }
-  Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '' });
+  Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', suite: 'all', q: '' });
   if (d.filterStatus) state.status = d.filterStatus;
   if (d.filterBrowser) state.browser = d.filterBrowser;
   if (d.filterFile) state.file = d.filterFile;
   if (d.filterTag) state.tag = d.filterTag;
   if (d.filterQ) state.q = d.filterQ;
+  if (d.filterSuite) state.suite = d.filterSuite;
   renderTable();
   if (!el.closest('#tests')) document.getElementById('tests').scrollIntoView({ behavior: 'smooth' });
 }
@@ -848,7 +870,7 @@ function bindGlobal() {
   document.addEventListener('click', (e) => {
     const show = e.target.closest?.('[data-show-test]');
     if (show) { showTest(show.getAttribute('data-show-test')); return; }
-    const filter = e.target.closest?.('[data-filter-status],[data-filter-browser],[data-filter-file],[data-filter-tag],[data-filter-q]');
+    const filter = e.target.closest?.('[data-filter-status],[data-filter-browser],[data-filter-file],[data-filter-tag],[data-filter-q],[data-filter-suite]');
     if (filter) applyFilter(filter);
   });
   let resize;

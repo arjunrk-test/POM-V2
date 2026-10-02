@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
 const { renderCharts, renderCombinedCharts } = require('./report-charts');
+const { buildCombinedDashboard } = require('./combine-dashboards');
 
 const ROOT = path.resolve(__dirname, '..');
 const PROJECT_FILE = path.join(ROOT, 'project.json');
@@ -381,29 +382,17 @@ async function sendCombinedReport(suiteNames, { dryRun = false } = {}) {
       return true;
     }
 
-    // Attach each suite's dashboard and JUnit XML, within the size limit.
+    // Attach ONE consolidated dashboard covering every suite.
     const notes = [];
-    const limit = (email.maxAttachmentMB ?? 10) * 1024 * 1024;
-    let used = 0;
     const attachments = [];
     if (email.attachReports) {
-      for (const { name } of suites) {
-        for (const file of [
-          { filename: `${name}-dashboard.html`, path: path.join(ROOT, 'reports', name, 'dashboard.html') },
-          { filename: `${name}-results.xml`, path: path.join(ROOT, 'reports', name, 'results.xml') },
-        ]) {
-          if (!fs.existsSync(file.path)) continue;
-          const size = fs.statSync(file.path).size;
-          if (used + size > limit) {
-            notes.push(`${file.filename} was not attached: the attachments would exceed ${email.maxAttachmentMB ?? 10} MB in total.`);
-            continue;
-          }
-          used += size;
-          attachments.push(file);
-        }
-      }
-      if (attachments.some((a) => a.filename.endsWith('-dashboard.html'))) {
-        notes.push('Each suite\'s dashboard is attached (<suite>-dashboard.html): open it in a browser for charts, the timeline and every test\'s details. Playwright HTML reports and traces stay in reports/<suite>/ on the machine that ran the suites.');
+      const dashboard = buildCombinedDashboard(suites.map((s) => s.name));
+      const limit = (email.maxAttachmentMB ?? 10) * 1024 * 1024;
+      if (dashboard && fs.statSync(dashboard.file).size > limit) {
+        notes.push(`all-suites-dashboard.html was not attached because it is larger than ${email.maxAttachmentMB ?? 10} MB. It is in reports/all-suites/ on the machine that ran the suites.`);
+      } else if (dashboard) {
+        attachments.push({ filename: 'all-suites-dashboard.html', path: dashboard.file });
+        notes.push('Open the attached all-suites-dashboard.html in a browser for one consolidated report of every suite: charts by suite, browser and API method, the timeline, and every test\'s steps and errors (filter by suite at the top of the test list). Per-suite reports, JUnit XML and traces stay in reports/<suite>/ on the machine that ran the suites.');
       }
     }
 

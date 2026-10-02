@@ -52,11 +52,38 @@ It contains, from top to bottom:
 
 > The dashboard can't open traces itself; use the *Open in Playwright report* link for those. The link works when the dashboard is opened from its folder in `reports/`, not from an email attachment.
 
+## Consolidated dashboard for several suites
+
+When several suites run with one command (`.\suite.bat --all` or `.\suite.bat smoke regression api`), each suite still gets its own dashboard in `reports/<suite>/`, and at the end they are merged into **one** page:
+
+```
+reports/all-suites/dashboard.html
+```
+
+It's the same dashboard with everything above, covering every test from every suite, plus:
+
+| Addition | What it shows |
+|---|---|
+| **Header** | "OrangeHRM · 3 suites" and one PASSED / FAILED badge for the whole run. |
+| **Results by suite** chart | One bar per suite, split by result. Click a bar to list that suite's tests. |
+| **Suite filter** | A *All suites* drop-down at the top of the test list. |
+| **Suite tag** | Each test shows which suite it ran in (on the row, in failure cards, in the detail panel). The same test can appear once per suite that includes it. |
+| **Run environment** | Each suite with its result and duration. |
+
+Each test's **Open in Playwright report** link opens that test in its own suite's Playwright report (`reports/<suite>/html`), so traces work as usual when the dashboard is opened from `reports/all-suites/`.
+
+This consolidated dashboard is what the combined email attaches (as `all-suites-dashboard.html`). To rebuild it from the latest runs without re-running tests:
+
+```powershell
+node scripts/combine-dashboards.js api regression smoke
+```
+
 ## Suite reports: `reports/<suite>/`
 
 ```
 reports/smoke/
 ├── dashboard.html   The dashboard (double-click to open)
+├── dashboard-data.json  The dashboard's data (used to build the consolidated dashboard)
 ├── html/            Playwright HTML report (open index.html via show-report)
 ├── results.xml      JUnit XML
 ├── results.json     JSON results
