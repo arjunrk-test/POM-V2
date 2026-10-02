@@ -143,6 +143,7 @@ Running 2 tests using 2 workers
 
   2 passed (9.0s)
 
+Dashboard:    reports/smoke/dashboard.html  (double-click to open)
 HTML report:  reports/smoke/html/index.html  (open with: npx playwright show-report reports/smoke/html)
 JUnit report: reports/smoke/results.xml
 Email: sent "[OrangeHRM QA] smoke suite PASSED: 2/2 passed" to ...
@@ -170,7 +171,8 @@ Every suite run writes to `reports/<suite>/`, replacing the previous run of the 
 
 | File | What it is |
 |---|---|
-| `reports/<suite>/html/` | The Playwright HTML report: open it to see every test, step, error and screenshot |
+| `reports/<suite>/dashboard.html` | The dashboard: charts, timeline, failures and every test's details on one page. Double-click to open. |
+| `reports/<suite>/html/` | The Playwright HTML report: every test, step and error, plus traces |
 | `reports/<suite>/results.xml` | JUnit XML, the equivalent of `testng-results.xml`; Jenkins and most CI tools read it |
 | `reports/<suite>/results.json` | Full results as JSON; the email is built from it |
 | `reports/<suite>/charts/` | The chart images used in the email |

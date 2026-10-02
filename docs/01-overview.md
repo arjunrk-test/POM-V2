@@ -17,6 +17,7 @@ On top of plain Playwright, this project adds:
 | Browser selection | Choose Chrome, Edge or both per test, from a JSON file | `test-plans/browsers.json` |
 | Test suites | Named groups of tests (smoke, regression, …), like `testng.xml` | `test-plans/suites/*.json` |
 | Suite runner | One command runs a suite, checks it, saves reports, sends email (like `testng.bat`) | `suite.bat`, `scripts/run-suite.js` |
+| Dashboard report | A colourful one-page report with charts, a timeline and every test's details | `reporters/dashboard-reporter.js`, `reporters/dashboard-template.html` |
 | Email reports | HTML email with charts and the reports attached | `project.json`, `scripts/send-report.js`, `scripts/report-charts.js` |
 
 ### If you come from Selenium + TestNG
@@ -30,7 +31,7 @@ On top of plain Playwright, this project adds:
 | `testng.bat` | `suite.bat <suite-name>` |
 | `thread-count` / `parallel` | `"workers"` in the suite file |
 | `retryAnalyzer` | `"retries"` in the suite file |
-| `test-output/` / `testng-results.xml` | `reports/<suite>/html` / `reports/<suite>/results.xml` |
+| `test-output/` / `testng-results.xml` | `reports/<suite>/dashboard.html` and `reports/<suite>/html` / `reports/<suite>/results.xml` |
 | Browser annotations on each test | `test-plans/browsers.json` |
 | Explicit waits (`WebDriverWait`) | Not needed in most cases: Playwright waits automatically for elements to be ready |
 
@@ -59,6 +60,7 @@ scripts/run-suite.js
    │     Tests run in Chrome and/or Edge
    │        │
    │        ▼
+   │     reports/smoke/dashboard.html (the dashboard)
    │     reports/smoke/html/        (HTML report)
    │     reports/smoke/results.xml  (JUnit XML)
    │     reports/smoke/results.json (JSON, used by the email)
@@ -79,6 +81,9 @@ When you run plain `npm test` (no suite), only the middle part happens: every te
 POM V2/
 ├── .github/workflows/playwright.yml   GitHub Actions: runs the tests on GitHub on every push / pull request
 ├── docs/                              This documentation
+├── reporters/
+│   ├── dashboard-reporter.js          Custom Playwright reporter that builds the dashboard
+│   └── dashboard-template.html        The dashboard page (layout, styles, charts)
 ├── scripts/
 │   ├── run-suite.js                   The suite runner (what suite.bat calls)
 │   ├── send-report.js                 Builds and sends the report email
@@ -108,7 +113,8 @@ Folders created when you run tests (all git-ignored, safe to delete):
 | Folder | Created by | Contents |
 |---|---|---|
 | `node_modules/` | `npm ci` | Installed packages |
-| `reports/<suite>/` | Suite runs | HTML report, JUnit XML, JSON, charts, email preview |
+| `reports/<suite>/` | Suite runs | Dashboard, HTML report, JUnit XML, JSON, charts, email preview |
+| `reports/local/` | Non-suite runs | Dashboard |
 | `playwright-report/` | Non-suite runs (`npm test`) | HTML report |
 | `test-results/` | Every run | Screenshots, videos and traces of failed tests |
 
@@ -120,7 +126,7 @@ The main Playwright settings file. Playwright reads it every time it starts. It 
 - **`fullyParallel: true`**: tests run in parallel, even tests inside the same file.
 - **`retries`**: how many times a failed test is retried. It comes from the suite file if set, otherwise 2 on CI and 0 locally.
 - **`workers`**: how many tests run at the same time. It comes from the suite file if set, otherwise 1 on CI and automatic (based on CPU cores) locally.
-- **`reporter`**: for suite runs, console output plus HTML, JUnit and JSON reports in `reports/<suite>/`; otherwise just the HTML report.
+- **`reporter`**: for suite runs, console output plus the dashboard, HTML, JUnit and JSON reports in `reports/<suite>/`; otherwise the HTML report in `playwright-report/` and the dashboard in `reports/local/`.
 - **`trace: 'on-first-retry'`**: when a test fails and is retried, Playwright records a trace (a step-by-step recording) of the retry. See [Reports](07-reports.md).
 - **`projects`**: one per browser, built by `utilities/browserPlan.js` from `browsers.json` and the suite.
 

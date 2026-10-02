@@ -6,7 +6,7 @@ The framework tests the **OrangeHRM** web application. It's built on [Playwright
 
 - **Choose the browser per test** (Chrome, Edge or both) from one JSON file, with no annotations in the test code.
 - **Test suites** like `testng.xml`, run with `suite.bat` like `testng.bat`.
-- **Reports**: HTML, JUnit XML and JSON for every suite run.
+- **Reports**: a colourful dashboard with charts and a timeline, plus HTML, JUnit XML and JSON for every suite run.
 - **Email reports** with colour charts, sent automatically to the project's mailing list.
 
 ## Where to start
@@ -35,7 +35,8 @@ npm test                                 # run every test
 .\suite.bat smoke                        # run the smoke suite, save reports, send the email
 .\suite.bat regression --no-email        # run the regression suite without sending email
 .\suite.bat smoke --headed               # watch the browser while the suite runs
-npx playwright show-report reports/smoke/html   # open the HTML report of the last smoke run
+start reports/smoke/dashboard.html               # open the dashboard of the last smoke run
+npx playwright show-report reports/smoke/html   # open the Playwright HTML report (traces)
 ```
 
 ## The files you will edit most

@@ -143,7 +143,8 @@ function collectAttachments(project, reportDir, suiteName, notes) {
   if (!project.email.attachReports) return [];
   const limit = (project.email.maxAttachmentMB ?? 10) * 1024 * 1024;
   const candidates = [
-    { filename: `${suiteName}-report.html`, path: path.join(reportDir, 'html', 'index.html') },
+    { filename: `${suiteName}-dashboard.html`, path: path.join(reportDir, 'dashboard.html') },
+    { filename: `${suiteName}-playwright-report.html`, path: path.join(reportDir, 'html', 'index.html') },
     { filename: `${suiteName}-results.xml`, path: path.join(reportDir, 'results.xml') },
   ];
   const attachments = [];
@@ -155,8 +156,10 @@ function collectAttachments(project, reportDir, suiteName, notes) {
     }
     attachments.push(file);
   }
-  if (attachments.some((a) => a.filename.endsWith('.html'))) {
-    notes.push('Open the attached HTML report in a browser for full details. Screenshots and traces stay in reports/ on the machine that ran the suite.');
+  if (attachments.some((a) => a.filename.endsWith('-dashboard.html'))) {
+    notes.push(`Open the attached ${suiteName}-dashboard.html in a browser for charts, the execution timeline, and every test's steps, errors and screenshots. Traces stay in reports/ on the machine that ran the suite.`);
+  } else if (attachments.some((a) => a.filename.endsWith('.html'))) {
+    notes.push('Open the attached HTML report in a browser for full details. Traces stay in reports/ on the machine that ran the suite.');
   }
   return attachments;
 }

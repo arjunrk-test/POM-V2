@@ -7,7 +7,7 @@ There are two ways to run tests:
 | Which tests | All tests (or what you filter on the command line) | The tests listed in the suite file |
 | Browsers | From `browsers.json` | From `browsers.json` |
 | Checks the suite first | – | Yes |
-| Reports | `playwright-report/` (HTML only) | `reports/<suite>/` (HTML, JUnit XML, JSON) |
+| Reports | `playwright-report/` (HTML) and `reports/local/dashboard.html` | `reports/<suite>/` (dashboard, HTML, JUnit XML, JSON) |
 | Email | No | Yes (unless `--no-email`) |
 | Use it for | Writing and debugging tests | Official runs: smoke, regression, nightly |
 

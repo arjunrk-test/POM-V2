@@ -22,7 +22,8 @@ After every suite run, the results are emailed to the project's mailing list. Th
 6. **Report link**, if `reportUrl` is set.
 
 **Attachments:**
-- `<suite>-report.html`: the HTML report (open it in a browser for every test's steps and errors).
+- `<suite>-dashboard.html`: the dashboard (open it in a browser for charts, the timeline, and every test's steps, errors and screenshots). See [Reports](07-reports.md#the-dashboard-start-here).
+- `<suite>-playwright-report.html`: the built-in Playwright HTML report.
 - `<suite>-results.xml`: the JUnit XML.
 
 Colours in the charts: green = passed, red = failed, amber = flaky, grey = skipped. Each colour always has its text label next to it.
@@ -84,7 +85,7 @@ Lives in the project root. Current content:
 | `bcc` | list | Hidden copy recipients. |
 | `subjectPrefix` | text | Put at the start of the subject, so people can create Outlook rules/filters for these emails. |
 | `charts` | `true` / `false` | Include the charts. |
-| `attachReports` | `true` / `false` | Attach the HTML report and JUnit XML. |
+| `attachReports` | `true` / `false` | Attach the dashboard, the Playwright HTML report and the JUnit XML. |
 | `maxAttachmentMB` | number | Any report file bigger than this isn't attached; the email says so instead. Most mail servers reject emails over ~20–25 MB. |
 | `reportUrl` | URL or `""` | Optional link to where the full reports are hosted (a Jenkins job, a shared drive, a CI run page). Shown as "Full report: …". |
 | `smtp.host` | host name | The mail server. |
@@ -169,5 +170,5 @@ node -e "process.loadEnvFile('.env.local'); const s=require('./project.json').em
 
 ## Limits to know
 
-- The attached HTML report shows every test's result, steps and errors, but **not** traces (and screenshots, if you enable them). Those stay on the machine that ran the suite, in `reports/<suite>/html/data/`. To share them, host the reports somewhere (shared drive, CI) and set `reportUrl`.
+- The attached dashboard includes screenshots (if tests take them), but neither attachment includes **traces**. Traces stay on the machine that ran the suite, in `reports/<suite>/html/data/`, and the dashboard's *Open in Playwright report* links only work from that folder. To share them, host the reports somewhere (shared drive, CI) and set `reportUrl`.
 - Every run of a suite overwrites `reports/<suite>/`, so `send-report` can only re-send the latest run.

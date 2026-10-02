@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Dashboard</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f1f2f4;
+  --border: #e2e4e8;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --muted: #75736e;
+  --accent: #2a78d6;
+  --accent-bg: #e8f1fc;
+  --grid: #e8e7e3;
+  --passed: #0ca30c;  --passed-bg: #e6f5e6;  --passed-ink: #0a6b0a;
+  --failed: #d03b3b;  --failed-bg: #fbeaea;  --failed-ink: #a4262a;
+  --flaky: #fab219;   --flaky-bg: #fdf2d8;   --flaky-ink: #835800;
+  --skipped: #9a9893; --skipped-bg: #eeeeec; --skipped-ink: #5b5a56;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+  --code-bg: #f6f6f4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110; --surface: #1a1a19; --surface-2: #232321; --border: #34342f;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #9a988f;
+    --accent: #3987e5; --accent-bg: #16263a; --grid: #2e2e2b;
+    --passed-bg: #10290f; --passed-ink: #6ad46a;
+    --failed-bg: #351717; --failed-ink: #f28b8b;
+    --flaky-bg: #33280c; --flaky-ink: #fbc95a;
+    --skipped-bg: #2a2a27; --skipped-ink: #c3c2b7;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+    --code-bg: #141413;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110; --surface: #1a1a19; --surface-2: #232321; --border: #34342f;
+  --text: #ffffff; --text-2: #c3c2b7; --muted: #9a988f;
+  --accent: #3987e5; --accent-bg: #16263a; --grid: #2e2e2b;
+  --passed-bg: #10290f; --passed-ink: #6ad46a;
+  --failed-bg: #351717; --failed-ink: #f28b8b;
+  --flaky-bg: #33280c; --flaky-ink: #fbc95a;
+  --skipped-bg: #2a2a27; --skipped-ink: #c3c2b7;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  --code-bg: #141413;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font: inherit; color: inherit; }
+code, pre { font-family: "Cascadia Code", Consolas, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+
+/* Top bar */
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar .wrap { display: flex; align-items: center; gap: 16px; height: 52px; }
+.brand { font-weight: 700; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.brand-mark { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, var(--passed), var(--accent)); }
+.nav { display: flex; gap: 4px; overflow-x: auto; flex: 1; scrollbar-width: none; }
+.nav a { color: var(--text-2); padding: 6px 10px; border-radius: 6px; white-space: nowrap; font-size: 13px; }
+.nav a:hover { background: var(--surface-2); text-decoration: none; color: var(--text); }
+.icon-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; height: 32px; padding: 0 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.result-strip { display: flex; height: 4px; }
+.result-strip span { display: block; height: 100%; }
+
+/* Hero */
+.hero { padding: 28px 0 8px; }
+.hero-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.hero h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -.01em; }
+.hero h1 .suite { color: var(--text-2); font-weight: 500; }
+.status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 8px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: .02em; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; color: var(--text-2); font-size: 13px; }
+.meta span { display: inline-flex; align-items: center; gap: 6px; }
+.meta svg { color: var(--muted); }
+
+/* Sections and cards */
+section { margin-top: 28px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.section-head h2 { margin: 0; font-size: 17px; }
+.section-head .hint { color: var(--muted); font-size: 12.5px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.card-pad { padding: 16px 18px; }
+.card h3 { margin: 0 0 2px; font-size: 14.5px; }
+.card .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 12px; }
+
+/* KPI tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 12px; }
+.tile { padding: 14px 16px; position: relative; overflow: hidden; }
+.tile::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--tile-color, var(--accent)); }
+.tile-top { display: flex; align-items: center; justify-content: space-between; color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+.tile-icon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--tile-bg, var(--accent-bg)); color: var(--tile-ink, var(--accent)); }
+.tile-value { font-size: 28px; font-weight: 700; line-height: 1.15; margin-top: 6px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.tile-foot { color: var(--muted); font-size: 12px; margin-top: 2px; }
+button.tile { text-align: left; cursor: pointer; border: 1px solid var(--border); }
+button.tile:hover { border-color: var(--tile-color, var(--accent)); }
+
+/* Charts */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart .mark { cursor: pointer; transition: opacity .12s; }
+.chart svg:hover .mark { opacity: .55; }
+.chart svg:hover .mark:hover { opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--text-2); margin-bottom: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.donut-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; }
+.donut-wrap svg { width: 190px; flex: none; }
+.donut-legend { flex: 1; min-width: 200px; display: grid; gap: 6px; }
+.donut-legend button { display: grid; grid-template-columns: 14px 1fr auto 48px; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; border: 1px solid transparent; background: none; cursor: pointer; text-align: left; }
+.donut-legend button:hover { background: var(--surface-2); border-color: var(--border); }
+.donut-legend .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.donut-legend .p { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.donut-legend .zero { opacity: .5; }
+.empty-chart { color: var(--muted); font-size: 13px; padding: 20px 0; }
+
+/* Tooltip */
+#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--text); color: var(--surface); padding: 7px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; max-width: 340px; white-space: pre-line; box-shadow: 0 4px 16px rgba(0, 0, 0, .2); opacity: 0; transition: opacity .08s; }
+#tip.show { opacity: 1; }
+#tip b { font-weight: 700; }
+
+/* Chips */
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 6px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.chip svg { flex: none; }
+.s-passed { background: var(--passed-bg); color: var(--passed-ink); }
+.s-failed { background: var(--failed-bg); color: var(--failed-ink); }
+.s-flaky { background: var(--flaky-bg); color: var(--flaky-ink); }
+.s-skipped { background: var(--skipped-bg); color: var(--skipped-ink); }
+.tag { display: inline-block; padding: 0 7px; border-radius: 5px; background: var(--accent-bg); color: var(--accent); font-size: 11.5px; font-weight: 600; }
+.browser { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); white-space: nowrap; }
+.browser i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+
+/* Failures */
+.failures { display: grid; gap: 12px; }
+.failure { border-left: 4px solid var(--failed); padding: 14px 16px; min-width: 0; }
+.failure-head > div:first-child, .detail-grid > div { min-width: 0; }
+.failure-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; justify-content: space-between; }
+.failure-title { font-weight: 600; }
+.failure-where { color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 2px; }
+.err { margin: 10px 0 0; padding: 10px 12px; background: var(--failed-bg); color: var(--failed-ink); border-radius: 8px; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
+.snippet { margin: 8px 0 0; padding: 10px 12px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; color: var(--text-2); }
+.link-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--text); white-space: nowrap; }
+.link-btn:hover { background: var(--surface-2); text-decoration: none; }
+.all-good { display: flex; align-items: center; gap: 12px; padding: 18px; color: var(--passed-ink); background: var(--passed-bg); border-radius: 12px; font-weight: 600; }
+
+/* Table */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.seg button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+.seg button .count { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.seg button[aria-pressed="true"] .count { color: var(--accent); }
+.field { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; height: 32px; padding: 0 10px; color: var(--text); font: inherit; font-size: 13px; }
+.search { flex: 1; min-width: 180px; }
+.showing { color: var(--muted); font-size: 12.5px; padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.clear { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; font-size: 12.5px; }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--surface-2); }
+th button { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; display: inline-flex; gap: 4px; align-items: center; }
+th button:hover { color: var(--text); }
+th.num, td.num { text-align: right; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--surface-2); }
+tr.row.open td { background: var(--surface-2); border-bottom-color: transparent; }
+.t-title { font-weight: 600; }
+.t-groups { color: var(--muted); font-weight: 400; }
+.t-file { color: var(--muted); font-size: 12px; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.dur { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dur-bar { height: 4px; border-radius: 2px; background: var(--grid); margin-top: 6px; min-width: 60px; }
+.dur-bar span { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.chev { color: var(--muted); transition: transform .15s; }
+tr.open .chev { transform: rotate(90deg); }
+.no-rows { text-align: center; color: var(--muted); padding: 32px; }
+
+/* Detail panel */
+td.detail { background: var(--surface-2); padding: 0 14px 16px; }
+.detail-inner { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.attempt-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.attempt-tabs button { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; }
+.attempt-tabs button[aria-selected="true"] { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+.detail h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; word-break: break-word; }
+.steps { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.steps ul { list-style: none; margin: 0; padding-left: 20px; }
+.steps li > div { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center; padding: 3px 0; }
+.steps .st-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.steps .st-dur { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.steps .fail .st-title { color: var(--failed-ink); font-weight: 600; }
+.ok-ico { color: var(--passed); } .fail-ico { color: var(--failed); }
+.cat { font-size: 10.5px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.shots a { display: block; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.shots img { display: block; width: 100%; height: auto; }
+.shots figcaption { font-size: 12px; color: var(--muted); padding: 4px 8px; }
+pre.log { margin: 0; padding: 10px 12px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+details summary { cursor: pointer; color: var(--text-2); font-size: 13px; margin-top: 10px; }
+
+/* Environment */
+.env { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 0; }
+.env div { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.env dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.env dd { margin: 2px 0 0; font-weight: 500; word-break: break-word; }
+
+footer { color: var(--muted); font-size: 12px; padding: 28px 0 36px; text-align: center; }
+.empty-state { padding: 80px 16px; text-align: center; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .hero h1 { font-size: 21px; }
+  .col-browser, .col-attempts { display: none; }
+  .nav { display: none; }
+}
+@media print {
+  .topbar, .toolbar, #tip { display: none; }
+  body { background: #fff; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const DATA = /*__DASHBOARD_DATA__*/null;
+
+// ---------- helpers ----------
+const STATUSES = [
+  { key: 'passed', label: 'Passed' },
+  { key: 'failed', label: 'Failed' },
+  { key: 'flaky', label: 'Flaky' },
+  { key: 'skipped', label: 'Skipped' },
+];
+const ICONS = {
+  passed: '<path d="M20 6 9 17l-5-5"/>',
+  failed: '<path d="M18 6 6 18M6 6l12 12"/>',
+  flaky: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  skipped: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+  total: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  rate: '<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  timer: '<path d="M10 2h4M12 14l3-3"/><circle cx="12" cy="14" r="8"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  server: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+  branch: '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="7" r="2"/><path d="M6 7v10M18 9c0 5-6 4-12 8"/>',
+  external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  chevron: '<path d="m9 6 6 6-6 6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  sort: '<path d="m8 9 4-4 4 4M8 15l4 4 4-4"/>',
+};
+const icon = (name, size = 14) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const statusColor = (s) => cssVar(`--${s}`);
+const pct = (n, d) => (d ? Math.round((n / d) * 1000) / 10 : 0);
+function dur(ms) {
+  if (ms == null) return '–';
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`;
+  const m = Math.floor(ms / 60000), s = Math.round((ms % 60000) / 1000);
+  return `${m} m ${String(s).padStart(2, '0')} s`;
+}
+const when = (t) => new Date(t).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'medium' });
+const truncate = (text, max) => {
+  if (text.length <= max) return text;
+  const head = Math.ceil((max - 1) * 0.5);
+  return `${text.slice(0, head)}…${text.slice(text.length - (max - 1 - head))}`;
+};
+const fullTitle = (t) => [...t.groups, t.title].join(' › ');
+const statusChip = (s) => `<span class="chip s-${s}">${icon(s, 12)}${esc(STATUSES.find((x) => x.key === s)?.label ?? s)}</span>`;
+const attemptStatus = (a) => (a.status === 'passed' ? 'passed' : a.status === 'skipped' || a.status === 'interrupted' ? 'skipped' : 'failed');
+const reportLink = (t) => (DATA.run.htmlReport ? `${DATA.run.htmlReport}#?testId=${encodeURIComponent(t.id)}` : '');
+
+function countBy(tests) {
+  const c = { total: tests.length, passed: 0, failed: 0, flaky: 0, skipped: 0 };
+  for (const t of tests) c[t.status]++;
+  return c;
+}
+function groupBy(tests, key) {
+  const map = new Map();
+  for (const t of tests) {
+    const k = key(t);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(t);
+  }
+  return map;
+}
+
+// ---------- state ----------
+const state = { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '', sort: 'default', dir: 1, open: new Set(), attempt: {} };
+
+// ---------- render: page ----------
+function render() {
+  const app = document.getElementById('app');
+  if (!DATA) {
+    app.innerHTML = '<div class="empty-state">No test data. This file is a template; run the tests to generate the dashboard.</div>';
+    return;
+  }
+  const tests = DATA.tests;
+  const c = countBy(tests);
+  const runFailed = c.failed > 0 || DATA.run.status !== 'passed';
+  const label = c.failed > 0 ? 'FAILED' : DATA.run.status === 'passed' ? 'PASSED' : DATA.run.status.toUpperCase();
+  const title = DATA.run.suite ? `${esc(DATA.project.name)} <span class="suite">· ${esc(DATA.run.suite)} suite</span>` : esc(DATA.project.name);
+  document.title = `${DATA.project.name}${DATA.run.suite ? ` · ${DATA.run.suite}` : ''}: ${label}`;
+  const env = DATA.environment;
+
+  app.innerHTML = `
+  <div class="topbar">
+    <div class="result-strip" aria-hidden="true">${STATUSES.filter((s) => c[s.key]).map((s) => `<span style="flex:${c[s.key]};background:var(--${s.key})"></span>`).join('')}</div>
+    <div class="wrap">
+      <div class="brand"><span class="brand-mark"></span>Test Dashboard</div>
+      <nav class="nav">
+        <a href="#overview">Overview</a><a href="#charts">Charts</a><a href="#timeline">Timeline</a>
+        <a href="#failures">Failures${c.failed ? ` (${c.failed})` : ''}</a><a href="#tests">All tests</a><a href="#environment">Environment</a>
+      </nav>
+      ${DATA.run.htmlReport ? `<a class="icon-btn" href="${esc(DATA.run.htmlReport)}" target="_blank" rel="noopener">${icon('external')}<span>Playwright report</span></a>` : ''}
+      <button class="icon-btn" id="theme" title="Switch light / dark theme" aria-label="Switch light or dark theme">${icon('moon')}</button>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <header class="hero" id="overview">
+      <div class="hero-row">
+        <h1>${title}</h1>
+        <span class="status-pill s-${runFailed ? 'failed' : 'passed'}">${icon(runFailed ? 'failed' : 'passed', 14)}${esc(label)}</span>
+      </div>
+      <div class="meta">
+        <span>${icon('calendar')}${esc(when(DATA.run.startTime))}</span>
+        <span>${icon('clock')}${esc(dur(DATA.run.duration))}</span>
+        ${DATA.project.environment ? `<span>${icon('server')}${esc(DATA.project.environment)}</span>` : ''}
+        ${DATA.project.applicationUrl ? `<span>${icon('globe')}<a href="${esc(DATA.project.applicationUrl)}" target="_blank" rel="noopener">${esc(DATA.project.applicationUrl)}</a></span>` : ''}
+        ${env.branch ? `<span>${icon('branch')}${esc(env.branch)}${env.commit ? ` @ ${esc(env.commit)}` : ''}</span>` : ''}
+      </div>
+    </header>
+
+    <section aria-label="Summary">${tilesHtml(c, tests)}</section>
+
+    <section id="charts">
+      <div class="section-head"><h2>Results at a glance</h2><span class="hint">Hover for details · click a bar to filter the test list</span></div>
+      <div class="charts">
+        <div class="card card-pad chart"><h3>Overall result</h3><div class="sub">${c.total} test run${c.total === 1 ? '' : 's'} across ${env.browsers.length} browser${env.browsers.length === 1 ? '' : 's'}</div><div id="ch-donut"></div></div>
+        <div class="card card-pad chart"><h3>Results by browser</h3><div class="sub">Test runs per browser, split by result</div>${legendHtml()}<div id="ch-browser"></div></div>
+        <div class="card card-pad chart"><h3>Results by spec file</h3><div class="sub">Test runs per file, split by result</div>${legendHtml()}<div id="ch-file"></div></div>
+        <div class="card card-pad chart"><h3>Slowest tests</h3><div class="sub">Total time per test run, including retries</div><div id="ch-slow"></div></div>
+        ${tests.some((t) => t.tags.length) ? `<div class="card card-pad chart"><h3>Results by tag</h3><div class="sub">Test runs per tag, split by result</div>${legendHtml()}<div id="ch-tag"></div></div>` : ''}
+      </div>
+    </section>
+
+    <section id="timeline">
+      <div class="section-head"><h2>Execution timeline</h2><span class="hint">Each row is a parallel worker; each block is one attempt</span></div>
+      <div class="card card-pad chart">
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--passed)"></i>Passed attempt</span>
+          <span><i class="swatch" style="background:var(--failed)"></i>Failed attempt</span>
+          <span><i class="swatch" style="background:var(--skipped)"></i>Skipped / interrupted</span>
+        </div>
+        <div id="ch-timeline"></div>
+      </div>
+    </section>
+
+    <section id="failures">
+      <div class="section-head"><h2>Failures</h2><span class="hint">${c.failed ? `${c.failed} failed test run${c.failed === 1 ? '' : 's'}` : ''}</span></div>
+      ${failuresHtml(tests)}
+    </section>
+
+    <section id="tests">
+      <div class="section-head"><h2>All tests</h2><span class="hint">Click a row for steps, errors, screenshots and logs</span></div>
+      <div class="card" id="table-card"></div>
+    </section>
+
+    <section id="environment">
+      <div class="section-head"><h2>Run environment</h2></div>
+      <div class="card"><dl class="env">${envHtml()}</dl></div>
+    </section>
+
+    <footer>Generated ${esc(when(DATA.run.generatedAt))} · Playwright ${esc(env.playwright)}${DATA.project.team ? ` · ${esc(DATA.project.team)}` : ''}</footer>
+  </main>`;
+
+  renderCharts();
+  renderTable();
+  bindGlobal();
+}
+
+function tilesHtml(c, tests) {
+  const rate = pct(c.passed + c.flaky, c.total - c.skipped);
+  const executed = tests.filter((t) => t.status !== 'skipped');
+  const avg = executed.length ? executed.reduce((s, t) => s + t.duration, 0) / executed.length : 0;
+  const retried = tests.filter((t) => t.attempts.length > 1).length;
+  const tile = (o) => `
+    <${o.filter ? `button type="button" data-filter-status="${o.filter}"` : 'div'} class="card tile" style="--tile-color:${o.color};--tile-bg:${o.bg};--tile-ink:${o.ink}">
+      <div class="tile-top"><span>${o.label}</span><span class="tile-icon">${icon(o.icon, 15)}</span></div>
+      <div class="tile-value">${o.value}</div>
+      <div class="tile-foot">${o.foot}</div>
+    </${o.filter ? 'button' : 'div'}>`;
+  const st = (key) => ({ color: `var(--${key})`, bg: `var(--${key}-bg)`, ink: `var(--${key}-ink)` });
+  return `<div class="tiles">
+    ${tile({ label: 'Total', icon: 'total', value: c.total, foot: `${new Set(tests.map((t) => t.file)).size} file(s) · ${new Set(tests.map((t) => t.browser)).size} browser(s)`, filter: 'all', color: 'var(--accent)', bg: 'var(--accent-bg)', ink: 'var(--accent)' })}
+    ${tile({ label: 'Passed', icon: 'passed', value: c.passed, foot: `${pct(c.passed, c.total)}% of runs`, filter: 'passed', ...st('passed') })}
+    ${tile({ label: 'Failed', icon: 'failed', value: c.failed, foot: `${pct(c.failed, c.total)}% of runs`, filter: 'failed', ...st('failed') })}
+    ${tile({ label: 'Flaky', icon: 'flaky', value: c.flaky, foot: 'passed after a retry', filter: 'flaky', ...st('flaky') })}
+    ${tile({ label: 'Skipped', icon: 'skipped', value: c.skipped, foot: `${pct(c.skipped, c.total)}% of runs`, filter: 'skipped', ...st('skipped') })}
+    ${tile({ label: 'Pass rate', icon: 'rate', value: `${rate}%`, foot: 'passed + flaky, of executed', color: 'var(--accent)', bg: 'var(--accent-bg)', ink: 'var(--accent)' })}
+    ${tile({ label: 'Duration', icon: 'clock', value: dur(DATA.run.duration), foot: `${DATA.environment.workers} worker(s)`, color: 'var(--accent)', bg: 'var(--accent-bg)', ink: 'var(--accent)' })}
+    ${tile({ label: 'Avg per test', icon: 'timer', value: dur(avg), foot: `${retried} test run(s) retried`, color: 'var(--accent)', bg: 'var(--accent-bg)', ink: 'var(--accent)' })}
+  </div>`;
+}
+
+const legendHtml = () => `<div class="legend">${STATUSES.map((s) => `<span><i class="swatch" style="background:var(--${s.key})"></i>${s.label}</span>`).join('')}</div>`;
+
+function failuresHtml(tests) {
+  const failed = tests.filter((t) => t.status === 'failed');
+  if (!failed.length) {
+    return `<div class="all-good">${icon('passed', 20)}No failures in this run.</div>`;
+  }
+  return `<div class="failures">${failed.map((t) => {
+    const last = t.attempts[t.attempts.length - 1];
+    const err = last?.errors[0];
+    const message = err ? err.message.split('\n').slice(0, 8).join('\n') : 'Failed without an error message.';
+    const link = reportLink(t);
+    return `<article class="card failure">
+      <div class="failure-head">
+        <div>
+          <div class="failure-title">${esc(fullTitle(t))}</div>
+          <div class="failure-where"><span class="browser"><i></i>${esc(t.browser)}</span><span>${esc(t.file)}:${t.line}</span>${t.attempts.length > 1 ? `<span>${t.attempts.length} attempts</span>` : ''}<span>${esc(dur(t.duration))}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="link-btn" data-show-test="${esc(t.id)}">Show details</button>
+          ${link ? `<a class="link-btn" href="${esc(link)}" target="_blank" rel="noopener">${icon('external', 12)}Trace &amp; report</a>` : ''}
+        </div>
+      </div>
+      <pre class="err">${esc(message)}</pre>
+      ${err?.snippet ? `<pre class="snippet">${esc(err.snippet)}</pre>` : ''}
+    </article>`;
+  }).join('')}</div>`;
+}
+
+function envHtml() {
+  const e = DATA.environment;
+  const rows = [
+    ['Suite', DATA.run.suite || 'All tests (no suite)'],
+    ['Run status', DATA.run.status],
+    ['Started', when(DATA.run.startTime)],
+    ['Finished', when(DATA.run.startTime + DATA.run.duration)],
+    ['Browsers', e.browsers.join(', ')],
+    ['Workers', e.workers],
+    ['Retries', e.retries],
+    ['Test timeout', dur(e.timeout)],
+    ['Environment', DATA.project.environment || '–'],
+    ['Application', DATA.project.applicationUrl || '–'],
+    ['Git branch', e.branch || '–'],
+    ['Git commit', e.commit ? `${e.commit}${e.commitMessage ? ` · ${e.commitMessage}` : ''}` : '–'],
+    ['Playwright', e.playwright],
+    ['Node.js', e.node],
+    ['Operating system', e.os],
+    ['Machine', `${e.host}${e.ci ? ' (CI)' : ''}`],
+  ];
+  return rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+}
+
+// ---------- charts ----------
+function renderCharts() {
+  const tests = DATA.tests;
+  donut(document.getElementById('ch-donut'), countBy(tests));
+  const byBrowser = [...groupBy(tests, (t) => t.browser)].map(([name, list]) => ({ label: name, counts: countBy(list), filter: { browser: name } }));
+  stackedBars(document.getElementById('ch-browser'), byBrowser);
+  const byFile = [...groupBy(tests, (t) => t.file)].map(([name, list]) => ({ label: name, counts: countBy(list), filter: { file: name } }))
+    .sort((a, b) => b.counts.failed - a.counts.failed || b.counts.total - a.counts.total);
+  stackedBars(document.getElementById('ch-file'), byFile);
+  const tagEl = document.getElementById('ch-tag');
+  if (tagEl) {
+    const tags = new Map();
+    for (const t of tests) for (const tag of t.tags) { if (!tags.has(tag)) tags.set(tag, []); tags.get(tag).push(t); }
+    stackedBars(tagEl, [...tags].map(([name, list]) => ({ label: name, counts: countBy(list), filter: { tag: name } })));
+  }
+  slowest(document.getElementById('ch-slow'), tests);
+  timeline(document.getElementById('ch-timeline'), tests);
+}
+
+function donut(el, c) {
+  const size = 190, r = 74, stroke = 24, cx = size / 2, cy = size / 2;
+  const circ = 2 * Math.PI * r;
+  const parts = STATUSES.filter((s) => c[s.key] > 0);
+  const gap = parts.length > 1 ? 3 : 0;
+  let offset = 0;
+  const arcs = parts.map((s) => {
+    const len = (c[s.key] / c.total) * circ;
+    const arc = `<circle class="mark" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${statusColor(s.key)}" stroke-width="${stroke}"
+      stroke-dasharray="${Math.max(len - gap, 0.5)} ${circ}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"
+      data-filter-status="${s.key}" data-tip="${s.label}\n${c[s.key]} of ${c.total} test runs (${pct(c[s.key], c.total)}%)"/>`;
+    offset += len;
+    return arc;
+  }).join('');
+  const svg = c.total
+    ? `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Overall result: ${STATUSES.map((s) => `${c[s.key]} ${s.label.toLowerCase()}`).join(', ')}">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${cssVar('--grid')}" stroke-width="${stroke}"/>${arcs}
+        <text x="${cx}" y="${cy + 2}" text-anchor="middle" font-size="32" font-weight="700" fill="${cssVar('--text')}">${c.total}</text>
+        <text x="${cx}" y="${cy + 22}" text-anchor="middle" font-size="12" fill="${cssVar('--muted')}">test run${c.total === 1 ? '' : 's'}</text>
+      </svg>`
+    : '<div class="empty-chart">No tests ran.</div>';
+  const legend = STATUSES.map((s) => `<button type="button" class="${c[s.key] ? '' : 'zero'}" data-filter-status="${s.key}">
+      <i class="swatch" style="background:var(--${s.key});width:14px;height:14px"></i><span>${s.label}</span>
+      <span class="n">${c[s.key]}</span><span class="p">${pct(c[s.key], c.total)}%</span></button>`).join('');
+  el.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${legend}</div></div>`;
+}
+
+function stackedBars(el, rows) {
+  if (!rows.length) { el.innerHTML = '<div class="empty-chart">No data.</div>'; return; }
+  const width = Math.max(el.clientWidth, 280);
+  const labelW = Math.min(Math.max(width * 0.3, 90), 210), valueW = 92, barH = 20, gapY = 14;
+  const plotW = width - labelW - valueW;
+  const max = Math.max(...rows.map((r) => r.counts.total), 1);
+  const chars = Math.floor(labelW / 7.2);
+  const text = cssVar('--text'), muted = cssVar('--text-2'), surface = cssVar('--surface');
+  const body = rows.map((row, i) => {
+    const y = i * (barH + gapY);
+    let x = labelW;
+    const parts = STATUSES.filter((s) => row.counts[s.key] > 0);
+    const segs = parts.map((s, j) => {
+      const w = (row.counts[s.key] / max) * plotW;
+      const last = j === parts.length - 1;
+      const drawn = last ? w : Math.max(w - 2, 1);
+      const r = last ? Math.min(4, drawn / 2) : 0;
+      const filter = Object.entries({ ...row.filter, status: s.key }).map(([k, v]) => `data-filter-${k}="${esc(v)}"`).join(' ');
+      const d = last
+        ? `M${x},${y} h${drawn - r} a${r},${r} 0 0 1 ${r},${r} v${barH - 2 * r} a${r},${r} 0 0 1 ${-r},${r} h${-(drawn - r)} z`
+        : `M${x},${y} h${drawn} v${barH} h${-drawn} z`;
+      const seg = `<path class="mark" d="${d}" fill="${statusColor(s.key)}" ${filter}
+        data-tip="${esc(row.label)}\n${s.label}: ${row.counts[s.key]} of ${row.counts.total} (${pct(row.counts[s.key], row.counts.total)}%)"/>`;
+      x += w;
+      return seg;
+    }).join('');
+    return `<text x="${labelW - 10}" y="${y + barH / 2 + 4.5}" text-anchor="end" font-size="12.5" fill="${text}"><title>${esc(row.label)}</title>${esc(truncate(row.label, chars))}</text>
+      <line x1="${labelW}" x2="${labelW}" y1="${y - 4}" y2="${y + barH + 4}" stroke="${cssVar('--grid')}"/>
+      ${segs}
+      <text x="${x + 8}" y="${y + barH / 2 + 4.5}" font-size="12" fill="${muted}">${row.counts.passed + row.counts.flaky}/${row.counts.total} passed</text>`;
+  }).join('');
+  const h = rows.length * (barH + gapY) - gapY + 4;
+  el.innerHTML = `<svg viewBox="0 0 ${width} ${h}" height="${h}" role="img" aria-label="Stacked bar chart" style="background:${surface}">${body}</svg>`;
+}
+
+function slowest(el, tests, limit = 10) {
+  const runs = tests.filter((t) => t.status !== 'skipped').sort((a, b) => b.duration - a.duration).slice(0, limit);
+  if (!runs.length) { el.innerHTML = '<div class="empty-chart">No executed tests.</div>'; return; }
+  const width = Math.max(el.clientWidth, 280);
+  const labelW = Math.min(Math.max(width * 0.42, 120), 300), valueW = 64, barH = 16, gapY = 12;
+  const plotW = width - labelW - valueW;
+  const max = Math.max(...runs.map((t) => t.duration), 1);
+  const chars = Math.floor(labelW / 6.6);
+  const text = cssVar('--text'), muted = cssVar('--text-2'), accent = cssVar('--accent');
+  const body = runs.map((t, i) => {
+    const y = i * (barH + gapY);
+    const w = Math.max((t.duration / max) * plotW, 2);
+    const r = Math.min(4, w / 2);
+    const label = `${t.title} · ${t.browser}`;
+    return `<text x="${labelW - 10}" y="${y + 12}" text-anchor="end" font-size="12" fill="${text}"><title>${esc(fullTitle(t))} · ${esc(t.browser)}</title>${esc(truncate(label, chars))}</text>
+      <path class="mark" d="M${labelW},${y} h${w - r} a${r},${r} 0 0 1 ${r},${r} v${barH - 2 * r} a${r},${r} 0 0 1 ${-r},${r} h${-(w - r)} z" fill="${accent}"
+        data-show-test="${esc(t.id)}" data-tip="${esc(fullTitle(t))}\n${esc(t.browser)} · ${esc(dur(t.duration))}${t.attempts.length > 1 ? ` · ${t.attempts.length} attempts` : ''}\n${esc(t.file)}:${t.line}"/>
+      <text x="${labelW + w + 8}" y="${y + 12}" font-size="12" fill="${muted}">${esc(dur(t.duration))}</text>`;
+  }).join('');
+  const h = runs.length * (barH + gapY) - gapY + 4;
+  el.innerHTML = `<svg viewBox="0 0 ${width} ${h}" height="${h}" role="img" aria-label="Slowest tests">${body}</svg>`;
+}
+
+function niceStep(range, target) {
+  const raw = range / target, pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  return [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= raw) || raw;
+}
+
+function timeline(el, tests) {
+  const attempts = tests.flatMap((t) => t.attempts.map((a) => ({ t, a })));
+  if (!attempts.length) { el.innerHTML = '<div class="empty-chart">No attempts recorded.</div>'; return; }
+  const width = Math.max(el.clientWidth, 280);
+  const start = Math.min(...attempts.map(({ a }) => a.start));
+  const end = Math.max(...attempts.map(({ a }) => a.start + a.duration), start + 1);
+  const lanes = [...new Set(attempts.map(({ a }) => a.lane))].sort((x, y) => x - y);
+  const labelW = 74, laneH = 26, top = 4, axisH = 24;
+  const plotW = width - labelW - 8;
+  const sx = (t) => labelW + ((t - start) / (end - start)) * plotW;
+  const text = cssVar('--text-2'), grid = cssVar('--grid'), muted = cssVar('--muted');
+  const step = niceStep(end - start, Math.max(2, Math.floor(plotW / 110)));
+  let ticks = '';
+  for (let v = 0; v <= end - start + 1; v += step) {
+    const x = sx(start + v);
+    ticks += `<line x1="${x}" x2="${x}" y1="${top}" y2="${top + lanes.length * laneH}" stroke="${grid}"/>
+      <text x="${x}" y="${top + lanes.length * laneH + 16}" text-anchor="middle" font-size="11" fill="${muted}">${esc(dur(v))}</text>`;
+  }
+  const rows = lanes.map((lane, i) => `<text x="0" y="${top + i * laneH + laneH / 2 + 4}" font-size="12" fill="${text}">Worker ${lane + 1}</text>`).join('');
+  const blocks = attempts.map(({ t, a }) => {
+    const i = lanes.indexOf(a.lane);
+    const x = sx(a.start), w = Math.max(sx(a.start + a.duration) - x - 1, 2);
+    const s = attemptStatus(a);
+    return `<rect class="mark" x="${x}" y="${top + i * laneH + 4}" width="${w}" height="${laneH - 8}" rx="3" fill="${statusColor(s)}"
+      data-show-test="${esc(t.id)}" data-tip="${esc(fullTitle(t))}\n${esc(t.browser)} · ${a.retry ? `retry #${a.retry}` : 'first run'} · ${esc(a.status)}\n${esc(dur(a.duration))}, started at +${esc(dur(a.start - start))}"/>`;
+  }).join('');
+  const h = top + lanes.length * laneH + axisH;
+  el.innerHTML = `<svg viewBox="0 0 ${width} ${h}" height="${h}" role="img" aria-label="Execution timeline">${ticks}${rows}${blocks}</svg>`;
+}
+
+// ---------- table ----------
+function filtered() {
+  const q = state.q.trim().toLowerCase();
+  let list = DATA.tests.filter((t) =>
+    (state.status === 'all' || t.status === state.status) &&
+    (state.browser === 'all' || t.browser === state.browser) &&
+    (state.file === 'all' || t.file === state.file) &&
+    (state.tag === 'all' || t.tags.includes(state.tag)) &&
+    (!q || `${fullTitle(t)} ${t.file} ${t.browser} ${t.tags.join(' ')}`.toLowerCase().includes(q)));
+  const order = { failed: 0, flaky: 1, passed: 2, skipped: 3 };
+  const key = {
+    default: (t) => order[t.status] * 1e9 - t.duration,
+    status: (t) => order[t.status],
+    title: (t) => fullTitle(t).toLowerCase(),
+    browser: (t) => t.browser,
+    duration: (t) => t.duration,
+    attempts: (t) => t.attempts.length,
+  }[state.sort];
+  list = [...list].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * state.dir);
+  return list;
+}
+
+function renderTable() {
+  const card = document.getElementById('table-card');
+  const all = DATA.tests;
+  const counts = countBy(all);
+  const list = filtered();
+  const browsers = [...new Set(all.map((t) => t.browser))];
+  const files = [...new Set(all.map((t) => t.file))].sort();
+  const tags = [...new Set(all.flatMap((t) => t.tags))].sort();
+  const maxDur = Math.max(...all.map((t) => t.duration), 1);
+  const active = state.status !== 'all' || state.browser !== 'all' || state.file !== 'all' || state.tag !== 'all' || state.q;
+  const sortBtn = (key, label) => `<button type="button" data-sort="${key}">${label}${icon('sort', 11)}</button>`;
+  const opt = (value, label, current) => `<option value="${esc(value)}"${value === current ? ' selected' : ''}>${esc(label)}</option>`;
+
+  card.innerHTML = `
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Filter by result">
+        <button type="button" data-filter-status="all" aria-pressed="${state.status === 'all'}">All <span class="count">${counts.total}</span></button>
+        ${STATUSES.map((s) => `<button type="button" data-filter-status="${s.key}" aria-pressed="${state.status === s.key}"><i class="swatch" style="background:var(--${s.key})"></i>${s.label} <span class="count">${counts[s.key]}</span></button>`).join('')}
+      </div>
+      <select class="field" id="f-browser" aria-label="Browser">${opt('all', 'All browsers', state.browser)}${browsers.map((b) => opt(b, b, state.browser)).join('')}</select>
+      <select class="field" id="f-file" aria-label="Spec file">${opt('all', 'All files', state.file)}${files.map((f) => opt(f, f, state.file)).join('')}</select>
+      ${tags.length ? `<select class="field" id="f-tag" aria-label="Tag">${opt('all', 'All tags', state.tag)}${tags.map((g) => opt(g, g, state.tag)).join('')}</select>` : ''}
+      <input class="field search" id="f-q" type="search" placeholder="Search title, file, browser, tag…" value="${esc(state.q)}" aria-label="Search tests">
+    </div>
+    <div class="showing"><span>Showing ${list.length} of ${all.length} test runs</span>${active ? '<button type="button" class="clear" id="f-clear">Clear filters</button>' : ''}</div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th style="width:28px"></th>
+          <th>${sortBtn('status', 'Result')}</th>
+          <th>${sortBtn('title', 'Test')}</th>
+          <th class="col-browser">${sortBtn('browser', 'Browser')}</th>
+          <th class="num">${sortBtn('duration', 'Duration')}</th>
+          <th class="num col-attempts">${sortBtn('attempts', 'Attempts')}</th>
+        </tr></thead>
+        <tbody>${list.length ? list.map((t) => rowHtml(t, maxDur)).join('') : '<tr><td colspan="6" class="no-rows">No tests match these filters.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  const q = document.getElementById('f-q');
+  q.addEventListener('input', () => {
+    state.q = q.value;
+    const pos = q.selectionStart;
+    renderTable();
+    const again = document.getElementById('f-q');
+    again.focus();
+    again.setSelectionRange(pos, pos);
+  });
+  for (const [id, key] of [['f-browser', 'browser'], ['f-file', 'file'], ['f-tag', 'tag']]) {
+    document.getElementById(id)?.addEventListener('change', (e) => { state[key] = e.target.value; renderTable(); });
+  }
+  document.getElementById('f-clear')?.addEventListener('click', () => {
+    Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '' });
+    renderTable();
+  });
+  card.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
+    const key = b.dataset.sort;
+    state.dir = state.sort === key ? -state.dir : key === 'duration' || key === 'attempts' ? -1 : 1;
+    state.sort = key;
+    renderTable();
+  }));
+  card.querySelectorAll('tr.row').forEach((tr) => tr.addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;
+    const id = tr.dataset.id;
+    state.open.has(id) ? state.open.delete(id) : state.open.add(id);
+    renderTable();
+  }));
+  card.querySelectorAll('[data-attempt]').forEach((b) => b.addEventListener('click', () => {
+    state.attempt[b.dataset.test] = Number(b.dataset.attempt);
+    renderTable();
+  }));
+}
+
+function rowHtml(t, maxDur) {
+  const open = state.open.has(t.id);
+  const groups = t.groups.length ? `<span class="t-groups">${esc(t.groups.join(' › '))} › </span>` : '';
+  return `<tr class="row${open ? ' open' : ''}" data-id="${esc(t.id)}" aria-expanded="${open}">
+      <td><span class="chev">${icon('chevron', 14)}</span></td>
+      <td>${statusChip(t.status)}</td>
+      <td><div class="t-title">${groups}${esc(t.title)}</div>
+        <div class="t-file"><span>${esc(t.file)}:${t.line}</span>${t.tags.map((g) => `<span class="tag">${esc(g)}</span>`).join('')}</div></td>
+      <td class="col-browser"><span class="browser"><i></i>${esc(t.browser)}</span></td>
+      <td class="num"><div class="dur">${esc(dur(t.duration))}</div><div class="dur-bar"><span style="width:${(t.duration / maxDur) * 100}%"></span></div></td>
+      <td class="num col-attempts">${t.attempts.length}</td>
+    </tr>
+    ${open ? `<tr><td colspan="6" class="detail">${detailHtml(t)}</td></tr>` : ''}`;
+}
+
+function stepsHtml(steps) {
+  if (!steps.length) return '';
+  return `<ul class="steps">${steps.map((s) => `<li class="${s.failed ? 'fail' : ''}"><div>
+      <span class="${s.failed ? 'fail-ico' : 'ok-ico'}">${icon(s.failed ? 'failed' : 'passed', 13)}</span>
+      <span class="st-title" title="${esc(s.title)}"><span class="cat">${esc(s.category)}</span>${esc(s.title)}</span>
+      <span class="st-dur">${esc(dur(s.duration))}</span></div>${stepsHtml(s.steps)}</li>`).join('')}</ul>`;
+}
+
+function detailHtml(t) {
+  const index = Math.min(state.attempt[t.id] ?? t.attempts.length - 1, t.attempts.length - 1);
+  const a = t.attempts[index];
+  const link = reportLink(t);
+  if (!a) return '<div class="detail-inner">This test did not run.</div>';
+  const tabs = t.attempts.length > 1 ? `<div class="attempt-tabs" role="tablist">${t.attempts.map((x, i) =>
+    `<button type="button" role="tab" aria-selected="${i === index}" data-test="${esc(t.id)}" data-attempt="${i}">
+      <i class="swatch" style="background:var(--${attemptStatus(x)})"></i>${i === 0 ? 'First run' : `Retry #${i}`} · ${esc(dur(x.duration))}</button>`).join('')}</div>` : '';
+  const images = a.attachments.filter((x) => x.kind === 'image');
+  const texts = a.attachments.filter((x) => x.kind === 'text');
+  const others = a.attachments.filter((x) => x.kind === 'trace' || x.kind === 'file');
+  return `<div class="detail-inner detail">
+    ${tabs}
+    <div class="detail-grid">
+      <div>
+        <h4>Details</h4>
+        <dl class="kv">
+          <dt>Test</dt><dd>${esc(fullTitle(t))}</dd>
+          <dt>File</dt><dd>${esc(t.file)}:${t.line}</dd>
+          <dt>Browser</dt><dd>${esc(t.browser)}</dd>
+          <dt>Result</dt><dd>${statusChip(t.status)}</dd>
+          <dt>This attempt</dt><dd>${esc(a.status)} · ${esc(dur(a.duration))} · worker ${a.lane + 1}</dd>
+          <dt>Started</dt><dd>${esc(when(a.start))}</dd>
+          ${t.tags.length ? `<dt>Tags</dt><dd>${t.tags.map((g) => `<span class="tag">${esc(g)}</span>`).join(' ')}</dd>` : ''}
+        </dl>
+        ${link ? `<p style="margin:14px 0 0"><a class="link-btn" href="${esc(link)}" target="_blank" rel="noopener">${icon('external', 12)}Open in Playwright report (trace, full steps)</a></p>` : ''}
+        ${others.length ? `<h4 style="margin-top:16px">Attachments</h4><ul style="margin:0;padding-left:18px">${others.map((x) => `<li>${esc(x.name)} <span style="color:var(--muted)">(${esc(x.kind === 'trace' ? 'open from the Playwright report' : x.contentType)})</span></li>`).join('')}</ul>` : ''}
+      </div>
+      <div>
+        <h4>Steps</h4>
+        ${a.steps.length ? stepsHtml(a.steps) : '<div style="color:var(--muted)">No steps recorded.</div>'}
+      </div>
+    </div>
+    ${a.errors.map((e) => `<h4 style="margin-top:16px">Error${e.location ? ` · ${esc(e.location)}` : ''}</h4><pre class="err">${esc(e.message)}</pre>${e.snippet ? `<pre class="snippet">${esc(e.snippet)}</pre>` : ''}`).join('')}
+    ${images.length ? `<h4 style="margin-top:16px">Screenshots</h4><div class="shots">${images.map((x) => `<figure style="margin:0"><a href="${x.src}" target="_blank" rel="noopener"><img src="${x.src}" alt="${esc(x.name)}" loading="lazy"></a><figcaption>${esc(x.name)}</figcaption></figure>`).join('')}</div>` : ''}
+    ${texts.map((x) => `<details><summary>${esc(x.name === 'error-context' ? 'Page snapshot at failure (error-context)' : x.name)}</summary><pre class="log">${esc(x.text)}</pre></details>`).join('')}
+    ${a.stdout ? `<details><summary>Console output (stdout)</summary><pre class="log">${esc(a.stdout)}</pre></details>` : ''}
+    ${a.stderr ? `<details><summary>Error output (stderr)</summary><pre class="log">${esc(a.stderr)}</pre></details>` : ''}
+  </div>`;
+}
+
+// ---------- interactions ----------
+function showTest(id) {
+  Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '' });
+  state.open.add(id);
+  renderTable();
+  document.querySelector(`tr.row[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function applyFilter(el) {
+  const d = el.dataset;
+  // The result buttons in the table toolbar only change the result filter.
+  if (el.closest('#table-card')) { state.status = d.filterStatus; renderTable(); return; }
+  Object.assign(state, { status: 'all', browser: 'all', file: 'all', tag: 'all', q: '' });
+  if (d.filterStatus) state.status = d.filterStatus;
+  if (d.filterBrowser) state.browser = d.filterBrowser;
+  if (d.filterFile) state.file = d.filterFile;
+  if (d.filterTag) state.tag = d.filterTag;
+  renderTable();
+  if (!el.closest('#tests')) document.getElementById('tests').scrollIntoView({ behavior: 'smooth' });
+}
+
+let bound = false;
+function bindGlobal() {
+  const themeBtn = document.getElementById('theme');
+  const setThemeIcon = () => {
+    const dark = document.documentElement.dataset.theme === 'dark' ||
+      (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+    themeBtn.innerHTML = icon(dark ? 'sun' : 'moon');
+  };
+  setThemeIcon();
+  themeBtn.addEventListener('click', () => {
+    const dark = getComputedStyle(document.documentElement).colorScheme === 'dark';
+    document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('dashboard-theme', document.documentElement.dataset.theme); } catch { /* storage unavailable */ }
+    render();
+  });
+  if (bound) return;
+  bound = true;
+
+  const tip = document.getElementById('tip');
+  document.addEventListener('mousemove', (e) => {
+    const target = e.target.closest?.('[data-tip]');
+    if (!target) { tip.classList.remove('show'); return; }
+    // Plain text only (the first line in bold), so test titles can never inject markup.
+    const [first, ...rest] = target.getAttribute('data-tip').split('\n');
+    const head = document.createElement('b');
+    head.textContent = first;
+    tip.replaceChildren(head, ...(rest.length ? [`\n${rest.join('\n')}`] : []));
+    tip.classList.add('show');
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+    if (y + h > innerHeight - 8) y = e.clientY - h - pad;
+    tip.style.left = `${Math.max(8, x)}px`;
+    tip.style.top = `${Math.max(8, y)}px`;
+  });
+  document.addEventListener('click', (e) => {
+    const show = e.target.closest?.('[data-show-test]');
+    if (show) { showTest(show.getAttribute('data-show-test')); return; }
+    const filter = e.target.closest?.('[data-filter-status],[data-filter-browser],[data-filter-file],[data-filter-tag]');
+    if (filter) applyFilter(filter);
+  });
+  let resize;
+  addEventListener('resize', () => { clearTimeout(resize); resize = setTimeout(renderCharts, 120); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) render(); });
+}
+
+try {
+  const saved = localStorage.getItem('dashboard-theme');
+  if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+} catch { /* storage unavailable */ }
+render();
+</script>
+</body>
+</html>

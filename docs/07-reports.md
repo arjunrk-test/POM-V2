@@ -4,18 +4,58 @@ Every run produces reports. This guide explains where they are, what each one is
 
 ## Where reports are saved
 
-| Run type | Report location |
-|---|---|
-| Suite run (`.\suite.bat smoke`) | `reports/smoke/` |
-| Plain run (`npm test`, `npx playwright test`) | `playwright-report/` |
-| Any run: files from failed tests | `test-results/` |
+| Run type | Dashboard | Playwright HTML report | Other files |
+|---|---|---|---|
+| Suite run (`.\suite.bat smoke`) | `reports/smoke/dashboard.html` | `reports/smoke/html/` | `reports/smoke/` |
+| Plain run (`npm test`, `npx playwright test`) | `reports/local/dashboard.html` | `playwright-report/` | – |
+| Any run: files from failed tests | | | `test-results/` |
 
-All three folders are git-ignored (never committed) and are **overwritten** by the next run of the same kind. A run of the `smoke` suite replaces `reports/smoke/` but leaves `reports/regression/` alone. If you need to keep a report, copy the folder somewhere else.
+These folders are git-ignored (never committed) and are **overwritten** by the next run of the same kind. A run of the `smoke` suite replaces `reports/smoke/` but leaves `reports/regression/` alone. If you need to keep a report, copy the folder somewhere else.
+
+## The dashboard: start here
+
+`dashboard.html` is the project's own report: one colourful page with the whole run at a glance. **Open it by double-clicking it.** It's a single self-contained file that needs no server and no internet, so it can also be emailed (it's attached to the report email) or copied to a shared drive.
+
+It contains, from top to bottom:
+
+| Section | What it shows |
+|---|---|
+| **Result strip** | A thin coloured bar along the top: the share of passed (green), failed (red), flaky (amber) and skipped (grey) tests. |
+| **Header** | Project, suite, a PASSED / FAILED badge, start time, duration, environment, application URL, git branch and commit. |
+| **Summary tiles** | Total, passed, failed, flaky, skipped, pass rate, duration, average time per test. Click a result tile to filter the test list. |
+| **Overall result** | Donut chart of all results, with counts and percentages. |
+| **Results by browser** | One bar per browser, split by result. |
+| **Results by spec file** | One bar per test file, split by result, files with failures first. Shows which area of the app is unstable. |
+| **Results by tag** | One bar per tag (`@smoke`, `@login`…), shown only if tests have tags. |
+| **Slowest tests** | The 10 longest test runs (including retries). |
+| **Execution timeline** | Each row is a parallel worker; each block is one test attempt, coloured by its result. Shows how well tests are spread across workers, and where retries happened. |
+| **Failures** | One card per failed test: browser, file and line, number of attempts, the error message and the code where it failed. |
+| **All tests** | Every test run in a table: filter by result, browser, file or tag, search, and sort by any column. **Click a row** to open its details (see below). |
+| **Run environment** | Workers, retries, timeout, browsers, Playwright, Node.js and OS versions, machine name, git branch and commit. |
+
+**Interacting with it:**
+- **Hover** over any bar, donut segment or timeline block for its exact numbers.
+- **Click** a bar or segment to filter the test list to those tests (e.g. click the red part of the *chrome* bar to list Chrome failures).
+- The **🌙 / ☀ button** switches between light and dark themes (it follows your system setting until you choose).
+- **Playwright report** (top right) opens the built-in report.
+
+**Test details** (click a row in *All tests*):
+- **Attempt tabs**, when a test was retried: *First run*, *Retry #1*… each with its own result and duration.
+- **Details:** full title, file and line, browser, result, worker, start time, tags.
+- **Steps:** every hook, `test.step`, Playwright action and assertion, with its duration; the failing step is marked ✕ in red.
+- **Error:** the full message and the code snippet with the failing line marked `>`.
+- **Screenshots:** shown inline when a test attaches them (click one to view it full size).
+- **Page snapshot at failure:** the `error-context` text snapshot of the page.
+- **Console output:** anything the test printed (`console.log`) and error output.
+- **Open in Playwright report:** jumps to the same test in the built-in report, where the **trace** is.
+
+> The dashboard can't open traces itself; use the *Open in Playwright report* link for those. The link works when the dashboard is opened from its folder in `reports/`, not from an email attachment.
 
 ## Suite reports: `reports/<suite>/`
 
 ```
 reports/smoke/
+├── dashboard.html   The dashboard (double-click to open)
 ├── html/            Playwright HTML report (open index.html via show-report)
 ├── results.xml      JUnit XML
 ├── results.json     JSON results
@@ -26,7 +66,7 @@ reports/smoke/
 └── email.html       Copy of the email body
 ```
 
-### HTML report: the one you'll use most
+### Playwright HTML report: for traces and the finest detail
 
 Open it with:
 

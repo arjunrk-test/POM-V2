@@ -89,6 +89,7 @@ console.log('');
 const run = playwright(playwrightArgs, { stdio: 'inherit' });
 
 console.log('');
+console.log(`Dashboard:    reports/${suiteName}/dashboard.html  (double-click to open)`);
 console.log(`HTML report:  reports/${suiteName}/html/index.html  (open with: npx playwright show-report reports/${suiteName}/html)`);
 console.log(`JUnit report: reports/${suiteName}/results.xml`);
 
