@@ -19,6 +19,8 @@ On top of plain Playwright, this project adds:
 | Suite runner | One command runs a suite, checks it, saves reports, sends email (like `testng.bat`) | `suite.bat`, `scripts/run-suite.js` |
 | Dashboard report | A colourful one-page report with charts, a timeline and every test's details | `reporters/dashboard-reporter.js`, `reporters/dashboard-template.html` |
 | Email reports | HTML email with charts and the reports attached | `project.json`, `scripts/send-report.js`, `scripts/report-charts.js` |
+| API testing | Tests for REST APIs, one folder per HTTP method, plus flows that link methods | `tests/api/`, `utilities/globalApi.js` |
+| Demo API + Swagger | A practice REST API with interactive documentation, started automatically for tests | `api-server/` |
 
 ### If you come from Selenium + TestNG
 
@@ -80,6 +82,9 @@ When you run plain `npm test` (no suite), only the middle part happens: every te
 ```
 POM V2/
 ├── .github/workflows/playwright.yml   GitHub Actions: runs the tests on GitHub on every push / pull request
+├── api-server/
+│   ├── server.js                      The demo REST API (npm run api:start)
+│   └── openapi.json                   Its OpenAPI (Swagger) description
 ├── docs/                              This documentation
 ├── reporters/
 │   ├── dashboard-reporter.js          Custom Playwright reporter that builds the dashboard
@@ -92,12 +97,15 @@ POM V2/
 │   ├── browsers.json                  Which browser(s) each test runs in
 │   └── suites/
 │       ├── smoke.json                 The smoke suite
-│       └── regression.json            The regression suite
+│       ├── regression.json            The regression suite
+│       └── api.json                   The API suite (every test in tests/api/)
 ├── tests/
-│   └── example.spec.js                The test files (*.spec.js)
+│   ├── example.spec.js                UI test files (*.spec.js)
+│   └── api/                           API tests: one folder per HTTP method, plus flows/ and support/
 ├── utilities/
 │   ├── globalUrl.js                   All page URLs used by tests
 │   ├── globalElements.js              All locators (elements) used by tests
+│   ├── globalApi.js                   API base URL, endpoints and login used by API tests
 │   └── browserPlan.js                 Reads browsers.json + suites and builds the browser projects
 ├── .env.local                         Your SMTP login, on your machine only (git-ignored)
 ├── .gitignore                         Files git must never commit
@@ -128,7 +136,8 @@ The main Playwright settings file. Playwright reads it every time it starts. It 
 - **`workers`**: how many tests run at the same time. It comes from the suite file if set, otherwise 1 on CI and automatic (based on CPU cores) locally.
 - **`reporter`**: for suite runs, console output plus the dashboard, HTML, JUnit and JSON reports in `reports/<suite>/`; otherwise the HTML report in `playwright-report/` and the dashboard in `reports/local/`.
 - **`trace: 'on-first-retry'`**: when a test fails and is retried, Playwright records a trace (a step-by-step recording) of the retry. See [Reports](07-reports.md).
-- **`projects`**: one per browser, built by `utilities/browserPlan.js` from `browsers.json` and the suite.
+- **`projects`**: one per browser, built by `utilities/browserPlan.js` from `browsers.json` and the suite, plus an `api` project for the API tests (no browser).
+- **`webServer`**: starts the demo API (`api-server/server.js`) before the tests, or reuses it if it's already running. Skipped when `API_BASE_URL` points at another server.
 
 You rarely need to edit this file.
 

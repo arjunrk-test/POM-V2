@@ -27,6 +27,7 @@ It contains, from top to bottom:
 | **Results by browser** | One bar per browser, split by result. |
 | **Results by spec file** | One bar per test file, split by result, files with failures first. Shows which area of the app is unstable. |
 | **Results by tag** | One bar per tag (`@smoke`, `@login`…), shown only if tests have tags. |
+| **API tests by method** | One bar per API method folder (GET, POST, … Flows), shown only if API tests ran. Click a bar to list that method's tests. Each API test's details include every request and response. See [API testing](11-api-testing.md). |
 | **Slowest tests** | The 10 longest test runs (including retries). |
 | **Execution timeline** | Each row is a parallel worker; each block is one test attempt, coloured by its result. Shows how well tests are spread across workers, and where retries happened. |
 | **Failures** | One card per failed test: browser, file and line, number of attempts, the error message and the code where it failed. |

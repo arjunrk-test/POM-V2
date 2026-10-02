@@ -9,7 +9,8 @@ One JSON file per suite in `test-plans/suites/`. The file name (without `.json`)
 ```
 test-plans/suites/
 ├── smoke.json        → .\suite.bat smoke
-└── regression.json   → .\suite.bat regression
+├── regression.json   → .\suite.bat regression
+└── api.json          → .\suite.bat api   (every API test)
 ```
 
 ## The suite file
@@ -31,7 +32,7 @@ test-plans/suites/
 | `name` | No | Display name, used in the JUnit report. Defaults to the file name. | `<suite name="...">` |
 | `workers` | No | How many tests run at the same time. Leave it out for automatic. Use `1` to run one at a time. | `thread-count` |
 | `retries` | No | How many times a failed test is retried before it counts as failed. | `retryAnalyzer` |
-| `files` | One of `files` / `tests` | Spec files whose **every test** belongs to the suite. Paths are relative to the `tests/` folder. | `<class name="...">` |
+| `files` | One of `files` / `tests` | Spec files **or folders** whose every test belongs to the suite. Paths are relative to the `tests/` folder, e.g. `"login.spec.js"`, `"api"`, `"api/flows"`. | `<class name="...">` / `<package name="...">` |
 | `tests` | One of `files` / `tests` | Individual tests, by **test title**. | `<include name="...">` |
 
 You can use `files`, `tests`, or both. A test in both lists simply runs once.
@@ -62,6 +63,16 @@ For files in subfolders, include the folder: `"employees/create.spec.js"` means 
 }
 ```
 
+**A whole folder** (here, every API test):
+```json
+{
+  "name": "API",
+  "workers": 4,
+  "files": ["api"],
+  "tests": []
+}
+```
+
 **Mix both:**
 ```json
 {
@@ -73,7 +84,7 @@ For files in subfolders, include the folder: `"employees/create.spec.js"` means 
 
 ## Which browser does a suite test run in?
 
-**Suites decide *which* tests run. `browsers.json` decides *where* they run.** A suite never sets browsers itself.
+**Suites decide *which* tests run. `browsers.json` decides *where* they run.** A suite never sets browsers itself. (API tests always run once, in the `api` project, without a browser.)
 
 So if `browsers.json` says:
 ```json
@@ -158,7 +169,7 @@ Before opening any browser, the runner checks the suite:
 |---|---|
 | Suite file doesn't exist | `Suite "smok" not found in …\test-plans\suites` and the list of available suites |
 | Suite has no `files` and no `tests` | `a suite needs at least one entry in "files" or "tests"` |
-| A file in `files` doesn't exist | `file "logn.spec.js" not found in …\tests (paths are relative to the tests folder)` |
+| A file or folder in `files` doesn't exist | `file "logn.spec.js" not found in …\tests (paths are relative to the tests folder)` |
 | A title in `tests` matches no test | `Suite "smoke" lists entries that match no test in any browser:` followed by the bad entries |
 
 That last check is important: a typo or a renamed test makes the run **fail loudly** instead of the test silently being left out. It also fires if a listed test exists but `browsers.json` gives it no browser (only possible when `defaultBrowsers` is `[]`).

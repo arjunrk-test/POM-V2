@@ -17,9 +17,10 @@ After every suite run, the results are emailed to the project's mailing list. Th
    - *Overall result*: a donut with the pass rate in the middle, plus passed / failed / flaky / skipped counts and percentages.
    - *Results by browser*: one bar per browser, split by result.
    - *Test duration*: test runs from slowest to fastest (the 8 slowest when there are more).
-4. **By browser** table: the same numbers as the chart, in a table.
-5. **Failed tests** table (only when something failed): test title, file, browser, and the first line of the error.
-6. **Report link**, if `reportUrl` is set.
+4. **API tests by method** chart (only when the run includes API tests): one bar per method folder (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, Flows).
+5. **By browser** table (**By browser / API** when API tests ran): the same numbers as the chart, plus an **API tests by method** table.
+6. **Failed tests** table (only when something failed): test title, file, browser (or `api`), and the first line of the error.
+7. **Report link**, if `reportUrl` is set.
 
 **Attachments:**
 - `<suite>-dashboard.html`: the dashboard (open it in a browser for charts, the timeline, and every test's steps, errors and screenshots). See [Reports](07-reports.md#the-dashboard-start-here).

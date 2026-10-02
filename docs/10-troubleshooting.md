@@ -95,6 +95,33 @@ CI runs on slower Linux machines, with 1 worker, headless. Look at the trace fro
 ### Test is "flaky" (fails, then passes on retry)
 See [Reports → Flaky tests](07-reports.md#flaky-tests).
 
+## API tests
+
+### `Timed out waiting 30000ms from config.webServer` / `Process from config.webServer was not able to start`
+Playwright couldn't start the demo API. Usually **port 3001 is used by another program**.
+**Fix:** find it with `netstat -ano | findstr :3001` and stop that program, or use another port for both the server and the tests: `$env:API_PORT=3002; npm test`.
+
+### `Login to http://localhost:3001 failed with 401`
+The API login was rejected. If you set `API_USERNAME` / `API_PASSWORD` (or `API_BASE_URL` to another server), check them. The demo server's login is `admin` / `admin123`.
+
+### `connect ECONNREFUSED 127.0.0.1:3001`
+Nothing is listening at the API address. If `API_BASE_URL` is set, Playwright doesn't start the demo server: check that server is up, or remove the variable (`Remove-Item Env:API_BASE_URL`).
+
+### `Unknown step "...". Available steps: ...`
+A flow uses a step name that doesn't exist. Copy the exact name from the list in the error (names are case-sensitive). If it's a new step, register its file in `tests/api/support/steps.js`.
+
+### `Unknown variable {{...}}. Known variables: ...`
+A flow uses `{{name}}` before any step saved it. Add `"save": { "name": "<field>" }` to an earlier step, and check the spelling.
+
+### Test `flow file <name>.flow.json is valid` failed
+The flow file isn't valid JSON. The error says where; open the file in VS Code to see it underlined.
+
+### `Two steps are named "...". Step names must be unique across all method folders.`
+Two steps files define the same step name. Rename one.
+
+### API test fails only when run with others
+Tests run in parallel against the same server. Make sure the test creates its own data (`newUser()`, `{{unique}}`) and never changes the three start-up users (ids 1–3).
+
 ## Reports
 
 ### `npx playwright show-report` says no report found

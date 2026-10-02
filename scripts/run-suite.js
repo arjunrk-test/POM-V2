@@ -69,7 +69,7 @@ const missing = [
     .filter((t) => !found.some((f) => f.title === t || f.title.endsWith(` ${t}`)))
     .map((t) => `test "${t}"`),
   ...(suite.files ?? [])
-    .filter((file) => !found.some((f) => normalize(f.file) === normalize(file)))
+    .filter((file) => !found.some((f) => normalize(f.file) === normalize(file) || normalize(f.file).startsWith(`${normalize(file).replace(/\/+$/, '')}/`)))
     .map((file) => `file "${file}"`),
 ];
 if (missing.length > 0) {

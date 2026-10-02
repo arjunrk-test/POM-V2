@@ -1,0 +1,34 @@
+{
+  "name": "Flow: replace a user with PUT",
+  "description": "Creates an inactive admin, checks which methods the user URL allows, replaces the user with PUT (role and status go back to their defaults), checks the result, then cleans up.",
+  "tags": ["@crud"],
+  "steps": [
+    {
+      "step": "POST create user",
+      "with": { "name": "Replace Me {{unique}}", "email": "replace.{{unique}}@example.com", "role": "admin", "status": "inactive" },
+      "save": { "userId": "id" }
+    },
+    {
+      "step": "OPTIONS allowed methods",
+      "with": { "id": "{{userId}}" },
+      "expect": { "allow": ["GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] }
+    },
+    {
+      "step": "PUT replace user",
+      "with": { "id": "{{userId}}", "name": "Replaced {{unique}}", "email": "replaced.{{unique}}@example.com" }
+    },
+    {
+      "step": "GET user by id",
+      "with": { "id": "{{userId}}" },
+      "expect": { "name": "Replaced {{unique}}", "email": "replaced.{{unique}}@example.com", "role": "tester", "status": "active" }
+    },
+    {
+      "step": "DELETE user",
+      "with": { "id": "{{userId}}" }
+    },
+    {
+      "step": "GET user not found",
+      "with": { "id": "{{userId}}" }
+    }
+  ]
+}

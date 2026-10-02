@@ -83,8 +83,13 @@ function statusDonut(summary) {
     <text x="250" y="${88 + 4 * 34}" font-size="12" fill="${TEXT_MUTED}">${summary.total} test run(s)</text>`);
 }
 
-/** One stacked bar per browser, all on the same scale. */
-function browserBars(summary) {
+/**
+ * One stacked bar per row (browser, or API method), all on the same scale.
+ * @param {{ name: string, total: number, passed: number, failed: number, flaky: number, skipped: number }[]} groups
+ * @param {string} heading
+ */
+function statusBars(groups, heading) {
+  const summary = { browsers: groups };
   const labelWidth = 90, valueWidth = 110, barHeight = 22, rowGap = 18, top = 70;
   const plotWidth = WIDTH - labelWidth - valueWidth;
   const max = Math.max(...summary.browsers.map((b) => b.total), 1);
@@ -111,7 +116,7 @@ function browserBars(summary) {
   }).join('');
 
   const height = top + summary.browsers.length * (barHeight + rowGap) + 6;
-  return svg(height, `${title('Results by browser')}${legend}${rows}`);
+  return svg(height, `${title(heading)}${legend}${rows}`);
 }
 
 /** Slowest test runs, longest first. */
@@ -155,9 +160,13 @@ async function renderCharts(summary, outDir) {
   const charts = [
     { cid: 'chart-overall', svg: statusDonut(summary),
       alt: `Overall result: ${summary.passed} passed, ${summary.failed} failed, ${summary.flaky} flaky, ${summary.skipped} skipped` },
-    { cid: 'chart-browsers', svg: browserBars(summary),
+    { cid: 'chart-browsers', svg: statusBars(summary.browsers, summary.api?.length ? 'Results by browser / API' : 'Results by browser'),
       alt: `Results by browser: ${summary.browsers.map((b) => `${b.name} ${b.passed}/${b.total} passed`).join(', ')}` },
   ];
+  if (summary.api?.length) {
+    charts.push({ cid: 'chart-api', svg: statusBars(summary.api, 'API tests by method'),
+      alt: `API tests by method: ${summary.api.map((g) => `${g.name} ${g.passed}/${g.total} passed`).join(', ')}` });
+  }
   if (summary.tests.filter((t) => t.status !== 'skipped').length >= 2) {
     charts.push({ cid: 'chart-durations', svg: slowestTests(summary), alt: 'Slowest test runs by duration' });
   }

@@ -1,0 +1,343 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Demo Users API",
+    "version": "1.0.0",
+    "description": "A small REST API that ships with the automation framework so new team members can learn and practise API test automation.\n\nIt manages **users** and supports every common HTTP method:\n\n| Method | Used for | Example |\n|---|---|---|\n| `GET` | Read data | `GET /api/users/1` |\n| `POST` | Create something new | `POST /api/users` |\n| `PUT` | Replace a whole record | `PUT /api/users/1` |\n| `PATCH` | Change some fields of a record | `PATCH /api/users/1` |\n| `DELETE` | Remove a record | `DELETE /api/users/1` |\n| `HEAD` | Same as GET but headers only (does it exist?) | `HEAD /api/users/1` |\n| `OPTIONS` | Which methods are allowed on a URL | `OPTIONS /api/users` |\n\n**Authentication:** reading (`GET`, `HEAD`, `OPTIONS`) is open. Writing (`POST`, `PUT`, `PATCH`, `DELETE` on users) needs a token. Call `POST /api/auth/login` with `admin` / `admin123`, copy the `token`, click **Authorize** at the top of this page and paste it.\n\n**Data** is kept in memory and resets whenever the server restarts. Three users are created at start-up (ids 1-3)."
+  },
+  "servers": [{ "url": "http://localhost:3001", "description": "Local demo server (npm run api:start)" }],
+  "tags": [
+    { "name": "Health", "description": "Is the server up?" },
+    { "name": "Auth", "description": "Log in to get a token for write operations" },
+    { "name": "Users", "description": "Create, read, update and delete users" }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Check the server is running",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "The server is up",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in and get a token",
+        "description": "Returns a Bearer token valid for one hour. Send it in the `Authorization: Bearer <token>` header of write requests.",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" },
+              "example": { "username": "admin", "password": "admin123" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": {
+            "description": "Wrong username or password",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid username or password" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "description": "Returns a page of users. Filter by role, status or a search text; results are paged.",
+        "operationId": "listUsers",
+        "parameters": [
+          { "name": "role", "in": "query", "schema": { "$ref": "#/components/schemas/Role" }, "description": "Only users with this role" },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/Status" }, "description": "Only users with this status" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Text to find in the name or email (not case-sensitive)" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of users",
+            "headers": { "X-Total-Count": { "$ref": "#/components/headers/X-Total-Count" } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserList" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "head": {
+        "tags": ["Users"],
+        "summary": "Count users (headers only)",
+        "description": "Same as `GET /api/users` but returns no body. Read the total from the `X-Total-Count` header.",
+        "operationId": "headUsers",
+        "responses": {
+          "200": { "description": "Headers only", "headers": { "X-Total-Count": { "$ref": "#/components/headers/X-Total-Count" } } }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Create a user",
+        "description": "Creates a user and returns it with its new `id`. The `Location` header holds the new user's URL. Emails must be unique.",
+        "operationId": "createUser",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserInput" },
+              "example": { "name": "Dana Doe", "email": "dana@example.com", "role": "developer" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": { "Location": { "description": "URL of the new user", "schema": { "type": "string", "example": "/api/users/4" } } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "options": {
+        "tags": ["Users"],
+        "summary": "Which methods does /api/users allow?",
+        "operationId": "optionsUsers",
+        "responses": {
+          "204": { "description": "No body; see the Allow header", "headers": { "Allow": { "$ref": "#/components/headers/Allow" } } }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 }, "description": "The user's id", "example": 1 }
+      ],
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get one user",
+        "operationId": "getUser",
+        "responses": {
+          "200": {
+            "description": "The user",
+            "headers": { "Last-Modified": { "description": "When the user was last changed", "schema": { "type": "string" } } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "head": {
+        "tags": ["Users"],
+        "summary": "Does this user exist? (headers only)",
+        "description": "Same as `GET /api/users/{id}` but returns no body. 200 means the user exists, 404 means it doesn't.",
+        "operationId": "headUser",
+        "responses": {
+          "200": { "description": "The user exists" },
+          "404": { "description": "The user does not exist" }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Replace a user",
+        "description": "Replaces the whole user. `name` and `email` are required; `role` and `status` go back to their defaults (`tester`, `active`) if not sent.",
+        "operationId": "replaceUser",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserInput" },
+              "example": { "name": "Alice Admin", "email": "alice.new@example.com", "role": "manager", "status": "active" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "The updated user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Change some fields of a user",
+        "description": "Changes only the fields you send. Send at least one of `name`, `email`, `role`, `status`.",
+        "operationId": "updateUser",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserPatch" },
+              "example": { "status": "inactive" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "The updated user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete a user",
+        "operationId": "deleteUser",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Deleted (no body)" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "options": {
+        "tags": ["Users"],
+        "summary": "Which methods does /api/users/{id} allow?",
+        "operationId": "optionsUser",
+        "responses": {
+          "204": { "description": "No body; see the Allow header", "headers": { "Allow": { "$ref": "#/components/headers/Allow" } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token from POST /api/auth/login"
+      }
+    },
+    "headers": {
+      "X-Total-Count": { "description": "Number of users matching the filters", "schema": { "type": "integer" } },
+      "Allow": { "description": "Comma-separated list of allowed methods", "schema": { "type": "string", "example": "GET, POST, HEAD, OPTIONS" } }
+    },
+    "schemas": {
+      "Role": { "type": "string", "enum": ["admin", "manager", "developer", "tester"] },
+      "Status": { "type": "string", "enum": ["active", "inactive"] },
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "role", "status", "createdAt", "updatedAt"],
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "Alice Admin" },
+          "email": { "type": "string", "format": "email", "example": "alice@example.com" },
+          "role": { "$ref": "#/components/schemas/Role" },
+          "status": { "$ref": "#/components/schemas/Status" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UserInput": {
+        "type": "object",
+        "required": ["name", "email"],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "email": { "type": "string", "format": "email" },
+          "role": { "$ref": "#/components/schemas/Role" },
+          "status": { "$ref": "#/components/schemas/Status" }
+        },
+        "additionalProperties": false
+      },
+      "UserPatch": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "email": { "type": "string", "format": "email" },
+          "role": { "$ref": "#/components/schemas/Role" },
+          "status": { "$ref": "#/components/schemas/Status" }
+        },
+        "additionalProperties": false
+      },
+      "UserList": {
+        "type": "object",
+        "required": ["data", "total", "page", "limit"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/User" } },
+          "total": { "type": "integer", "description": "Users matching the filters (all pages)" },
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": { "username": { "type": "string" }, "password": { "type": "string", "format": "password" } }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": ["token", "tokenType", "expiresIn"],
+        "properties": {
+          "token": { "type": "string" },
+          "tokenType": { "type": "string", "example": "Bearer" },
+          "expiresIn": { "type": "integer", "description": "Seconds until the token expires", "example": 3600 }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ok" },
+          "uptimeSeconds": { "type": "integer" },
+          "users": { "type": "integer", "description": "Number of users currently stored" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": { "type": "string", "description": "Short error code", "example": "NotFound" },
+          "message": { "type": "string", "description": "What went wrong, in plain words" },
+          "details": { "type": "array", "items": { "type": "string" }, "description": "Validation problems, one per item" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "The request is malformed (bad id, bad query value or invalid JSON)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }, "example": { "error": "BadRequest", "message": "User id must be a positive whole number" } } }
+      },
+      "ValidationError": {
+        "description": "The request body is invalid",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "ValidationError", "message": "The request body is invalid", "details": ["email is required and must be a valid email address"] }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid token",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }, "example": { "error": "Unauthorized", "message": "A valid Bearer token is required. Get one from POST /api/auth/login." } } }
+      },
+      "NotFound": {
+        "description": "No user with this id",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }, "example": { "error": "NotFound", "message": "User 99 not found" } } }
+      },
+      "Conflict": {
+        "description": "Another user already has this email",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }, "example": { "error": "Conflict", "message": "A user with email dana@example.com already exists" } } }
+      }
+    }
+  }
+}

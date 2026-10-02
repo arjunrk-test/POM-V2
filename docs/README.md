@@ -8,6 +8,7 @@ The framework tests the **OrangeHRM** web application. It's built on [Playwright
 - **Test suites** like `testng.xml`, run with `suite.bat` like `testng.bat`.
 - **Reports**: a colourful dashboard with charts and a timeline, plus HTML, JUnit XML and JSON for every suite run.
 - **Email reports** with colour charts, sent automatically to the project's mailing list.
+- **API testing**: a demo REST API with Swagger docs, tests organised by HTTP method, and **flows** that link requests across methods.
 
 ## Where to start
 
@@ -25,6 +26,9 @@ If you are new, read these in order:
 | 8 | [Email reports](08-email-reports.md) | `project.json`, mailing lists, SMTP login, charts |
 | 9 | [CI with GitHub Actions](09-ci-github-actions.md) | How tests run automatically on GitHub |
 | 10 | [Troubleshooting](10-troubleshooting.md) | Common errors and how to fix them |
+| 11 | [API testing](11-api-testing.md) | What API testing is, the folder per method, writing API tests, running the API suite |
+| 12 | [API server and Swagger](12-api-server-and-swagger.md) | The demo API, what Swagger/OpenAPI is, using the Swagger page |
+| 13 | [API flows](13-api-flows.md) | Linking requests from different methods into one scenario (POST → GET → DELETE) |
 
 ## Quick reference
 
@@ -35,6 +39,9 @@ npm test                                 # run every test
 .\suite.bat smoke                        # run the smoke suite, save reports, send the email
 .\suite.bat regression --no-email        # run the regression suite without sending email
 .\suite.bat smoke --headed               # watch the browser while the suite runs
+.\suite.bat api                          # run all API tests, save reports, send the email
+npm run test:api                         # run all API tests (no suite)
+npm run api:start                        # start the demo API; Swagger UI at http://localhost:3001/docs
 start reports/smoke/dashboard.html               # open the dashboard of the last smoke run
 npx playwright show-report reports/smoke/html   # open the Playwright HTML report (traces)
 ```
@@ -49,4 +56,8 @@ npx playwright show-report reports/smoke/html   # open the Playwright HTML repor
 | `test-plans/browsers.json` | Choosing the browser(s) for a test |
 | `test-plans/suites/*.json` | Adding a test to a suite, or creating a new suite |
 | `project.json` | Changing who receives the report email |
+| `tests/api/<method>/*.spec.js` | Writing API tests |
+| `tests/api/<method>/*.steps.js` | Adding reusable API requests (steps) |
+| `tests/api/flows/*.flow.json` | Linking API steps into a flow |
+| `utilities/globalApi.js` | Adding an API endpoint |
 | `.env.local` | Your SMTP login (on your machine only, never committed) |

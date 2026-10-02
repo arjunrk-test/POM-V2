@@ -1,0 +1,9 @@
+{
+  "name": "API",
+  "workers": 4,
+  "retries": 0,
+  "files": [
+    "api"
+  ],
+  "tests": []
+}

@@ -62,6 +62,21 @@ function summarize(resultsFile) {
     skipped: count('skipped', name),
   }));
 
+  // API tests, grouped by their method folder (tests/api/<get|post|...|flows>/).
+  const apiTests = tests.filter((t) => t.browser === 'api');
+  const groupOf = (t) => t.file.replace(/\\/g, '/').split('/')[1] ?? 'other';
+  const order = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'flows'];
+  const api = [...new Set(apiTests.map(groupOf))]
+    .sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
+    .map((group) => {
+      const list = apiTests.filter((t) => groupOf(t) === group);
+      const n = (status) => list.filter((t) => t.status === status).length;
+      return {
+        name: group === 'flows' ? 'Flows' : group.toUpperCase(),
+        total: list.length, passed: n('expected'), failed: n('unexpected'), flaky: n('flaky'), skipped: n('skipped'),
+      };
+    });
+
   return {
     startTime: new Date(report.stats.startTime),
     durationMs: report.stats.duration,
@@ -71,6 +86,7 @@ function summarize(resultsFile) {
     flaky: count('flaky'),
     skipped: count('skipped'),
     browsers,
+    api,
     tests,
     failures: tests.filter((t) => t.status === 'unexpected'),
   };
@@ -94,10 +110,12 @@ function buildHtml(project, suiteName, summary, notes, charts, chartSrc) {
   const head = 'style="padding:6px 12px;border:1px solid #ddd;background:#f4f4f4;text-align:left;"';
   const row = (label, value) => `<tr><th ${head}>${escapeHtml(label)}</th><td ${cell}>${escapeHtml(value)}</td></tr>`;
 
-  const browserRows = summary.browsers
+  const countRows = (rows) => rows
     .map((b) => `<tr><td ${cell}>${escapeHtml(b.name)}</td><td ${cell}>${b.total}</td><td ${cell}>${b.passed}</td>` +
       `<td ${cell}>${b.failed}</td><td ${cell}>${b.flaky}</td><td ${cell}>${b.skipped}</td></tr>`)
     .join('');
+  const countHead = (label) => `<tr><th ${head}>${label}</th><th ${head}>Total</th><th ${head}>Passed</th><th ${head}>Failed</th><th ${head}>Flaky</th><th ${head}>Skipped</th></tr>`;
+  const hasApi = summary.api.length > 0;
 
   const failureRows = summary.failures
     .map((f) => `<tr><td ${cell}>${escapeHtml(f.title)}<br><small style="color:#666;">${escapeHtml(f.file)}</small></td>` +
@@ -120,15 +138,21 @@ function buildHtml(project, suiteName, summary, notes, charts, chartSrc) {
 
 ${charts.map((c) => `<p style="margin:0 0 20px;"><img src="${chartSrc(c)}" width="${c.width}" alt="${escapeHtml(c.alt)}" style="display:block;max-width:100%;height:auto;border:0;"></p>`).join('')}
 
-<h3 style="margin:16px 0 8px;">By browser</h3>
+<h3 style="margin:16px 0 8px;">${hasApi ? 'By browser / API' : 'By browser'}</h3>
 <table style="border-collapse:collapse;">
-  <tr><th ${head}>Browser</th><th ${head}>Total</th><th ${head}>Passed</th><th ${head}>Failed</th><th ${head}>Flaky</th><th ${head}>Skipped</th></tr>
-  ${browserRows}
+  ${countHead(hasApi ? 'Project' : 'Browser')}
+  ${countRows(summary.browsers)}
 </table>
+
+${hasApi ? `<h3 style="margin:16px 0 8px;">API tests by method</h3>
+<table style="border-collapse:collapse;">
+  ${countHead('Method')}
+  ${countRows(summary.api)}
+</table>` : ''}
 
 ${summary.failures.length ? `<h3 style="margin:16px 0 8px;">Failed tests</h3>
 <table style="border-collapse:collapse;">
-  <tr><th ${head}>Test</th><th ${head}>Browser</th><th ${head}>Error</th></tr>
+  <tr><th ${head}>Test</th><th ${head}>${hasApi ? 'Project' : 'Browser'}</th><th ${head}>Error</th></tr>
   ${failureRows}
 </table>` : ''}
 

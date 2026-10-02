@@ -1,6 +1,6 @@
 # 4. Browser selection (`browsers.json`)
 
-Each test can run in **Chrome only**, **Edge only**, or **both**. You choose this in one file, `test-plans/browsers.json`, not in the test code. Playwright reads the file every time it starts.
+Each UI test can run in **Chrome only**, **Edge only**, or **both**. You choose this in one file, `test-plans/browsers.json`, not in the test code. Playwright reads the file every time it starts.
 
 ## The file
 
@@ -24,6 +24,8 @@ Browser names:
 |---|---|
 | `chrome` | Google Chrome installed on the machine |
 | `edge` | Microsoft Edge installed on the machine |
+
+> **API tests** (`tests/api/`) don't use a browser, so this file doesn't apply to them: they always run once, in the `api` project. See [API testing](11-api-testing.md).
 
 ## Common choices
 

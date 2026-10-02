@@ -2,6 +2,7 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
 import { browserProjects, loadSuite } from './utilities/browserPlan';
+import { API_BASE_URL, ENDPOINTS, USES_LOCAL_API } from './utilities/globalApi';
 
 const testDir = path.resolve(__dirname, 'tests');
 
@@ -56,15 +57,20 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  /* One project per browser (chrome, edge). Which tests run in which browser
-   * comes from test-plans/browsers.json, narrowed to the suite's tests when SUITE is set. */
+  /* One project per browser (chrome, edge), plus "api" for the API tests in tests/api/.
+   * Which UI tests run in which browser comes from test-plans/browsers.json,
+   * narrowed to the suite's tests when SUITE is set. */
   projects: browserProjects(__dirname, testDir, suite),
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  /* Start the demo API (api-server/) for the API tests, unless API_BASE_URL points elsewhere.
+   * If it's already running (npm run api:start), the running one is reused. */
+  webServer: USES_LOCAL_API
+    ? {
+        command: 'node api-server/server.js',
+        url: `${API_BASE_URL}${ENDPOINTS.health}`,
+        reuseExistingServer: true,
+        timeout: 30_000,
+      }
+    : undefined,
 });
 

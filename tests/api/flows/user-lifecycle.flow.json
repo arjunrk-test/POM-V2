@@ -1,0 +1,42 @@
+{
+  "name": "Flow: user lifecycle (create, read, update, delete)",
+  "description": "Creates a user, reads it back, changes its status, checks the change, then deletes it and confirms it is gone.",
+  "tags": ["@crud"],
+  "steps": [
+    {
+      "step": "POST create user",
+      "with": { "name": "Flow User {{unique}}", "email": "flow.{{unique}}@example.com", "role": "developer" },
+      "save": { "userId": "id", "email": "email" }
+    },
+    {
+      "step": "GET user by id",
+      "with": { "id": "{{userId}}" },
+      "expect": { "email": "{{email}}", "role": "developer", "status": "active" }
+    },
+    {
+      "step": "PATCH update user",
+      "with": { "id": "{{userId}}", "status": "inactive" }
+    },
+    {
+      "step": "GET user by id",
+      "with": { "id": "{{userId}}" },
+      "expect": { "status": "inactive", "role": "developer" }
+    },
+    {
+      "step": "HEAD user exists",
+      "with": { "id": "{{userId}}" }
+    },
+    {
+      "step": "DELETE user",
+      "with": { "id": "{{userId}}" }
+    },
+    {
+      "step": "GET user not found",
+      "with": { "id": "{{userId}}" }
+    },
+    {
+      "step": "HEAD user missing",
+      "with": { "id": "{{userId}}" }
+    }
+  ]
+}

@@ -65,7 +65,7 @@ Installs Google Chrome and Microsoft Edge on the Linux machine (`--with-deps` al
     - name: Run Playwright tests
       run: npx playwright test
 ```
-Runs **all** tests, in the browsers set in `browsers.json`. GitHub sets the `CI` environment variable, so the config uses **2 retries, 1 worker**, and fails if a `test.only` was left in the code.
+Runs **all** tests: UI tests in the browsers set in `browsers.json`, and the API tests. Playwright starts the demo API server on the CI machine automatically (`webServer` in the config), so API tests need no extra workflow step. GitHub sets the `CI` environment variable, so the config uses **2 retries, 1 worker**, and fails if a `test.only` was left in the code.
 
 ```yaml
     - uses: actions/upload-artifact@v4

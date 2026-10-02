@@ -15,12 +15,14 @@
 //     "name": "Smoke",
 //     "workers": 2,                             // optional, tests run in parallel (like thread-count)
 //     "retries": 0,                             // optional
-//     "files": ["login.spec.js"],               // every test in these files (paths relative to tests/)
+//     "files": ["login.spec.js", "api"],        // every test in these files or folders (relative to tests/)
 //     "tests": ["user can log in with valid credentials"]   // individual tests by title
 //   }
 //
 // A suite is picked with the SUITE environment variable (suite.bat sets it).
 // Without SUITE every test runs. Browsers always come from browsers.json.
+//
+// API tests (tests/api/) don't use a browser: they run in a separate "api" project.
 
 import fs from 'fs';
 import path from 'path';
@@ -46,9 +48,15 @@ const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // Playwright greps against "<project> <file> <describe titles...> <test title> <@tags...>".
 /** @param {string} title */
 const titlePattern = (title) => `${escapeRegExp(title)}( @\\S+)*$`;
-/** @param {string} project @param {string} file */
-const filePattern = (project, file) =>
-  `^${escapeRegExp(project)} ${file.split(/[\\/]/).map(escapeRegExp).join('[\\\\/]')} `;
+/**
+ * Matches every test in a spec file, or (folder = true) every test under a folder.
+ * @param {string} project @param {string} file @param {boolean} [folder]
+ */
+const filePattern = (project, file, folder = false) =>
+  `^${escapeRegExp(project)} ${file.replace(/[\\/]+$/, '').split(/[\\/]/).map(escapeRegExp).join('[\\\\/]')}${folder ? '[\\\\/]' : ' '}`;
+
+/** API tests live here (relative to the tests folder) and run in the "api" project, not in a browser. */
+export const API_TEST_DIR = 'api';
 
 /** @param {string} file */
 const readJson = (file) => {
@@ -131,8 +139,9 @@ export function loadSuite(rootDir, testDir, name) {
 export function browserProjects(rootDir, testDir, suite) {
   const { defaultBrowsers, tests } = loadBrowserPlan(rootDir);
   const titles = Object.keys(tests);
+  const isFolder = (/** @type {string} */ file) => fs.statSync(path.resolve(testDir, file)).isDirectory();
 
-  return Object.entries(BROWSERS).map(([name, use]) => {
+  const browserProjectList = Object.entries(BROWSERS).map(([name, use]) => {
     const runsHere = titles.filter((title) => tests[title].includes(name));
     const notHere = titles.filter((title) => !tests[title].includes(name));
     const byDefault = defaultBrowsers.includes(name);
@@ -146,22 +155,36 @@ export function browserProjects(rootDir, testDir, suite) {
       // The suite's tests, minus those assigned elsewhere (handled by grepInvert).
       include = [
         ...suite.tests.map((t) => `(^| )${titlePattern(t)}`),
-        ...suite.files.map((f) => filePattern(name, f)),
+        ...suite.files.map((f) => filePattern(name, f, isFolder(f))),
       ];
     } else {
       // Only suite tests that browsers.json assigns to this browser.
       include = [
         ...suite.tests.filter((t) => tests[t]?.includes(name)).map((t) => `(^| )${titlePattern(t)}`),
-        ...suite.files.flatMap((f) => runsHere.map((t) => `${filePattern(name, f)}(.* )?${titlePattern(t)}`)),
+        ...suite.files.flatMap((f) => runsHere.map((t) => `${filePattern(name, f, isFolder(f))}(.* )?${titlePattern(t)}`)),
       ];
     }
 
     /** @type {import('@playwright/test').Project} */
-    const project = { name, use };
+    const project = { name, use, testIgnore: `**/${API_TEST_DIR}/**` };
     if (include.length > 0) project.grep = include.map((p) => new RegExp(p));
     // A never-matching pattern keeps the project empty when nothing is assigned to it.
     else if (suite || !byDefault) project.grep = /$^/;
     if (byDefault && notHere.length > 0) project.grepInvert = notHere.map((t) => new RegExp(`(^| )${titlePattern(t)}`));
     return project;
   });
+
+  // API tests need no browser: they run once, in their own "api" project.
+  // browsers.json doesn't apply to them; a suite picks them by folder, file or title.
+  /** @type {import('@playwright/test').Project} */
+  const apiProject = { name: 'api', testMatch: `**/${API_TEST_DIR}/**/*.spec.js` };
+  if (suite) {
+    const include = [
+      ...suite.tests.map((t) => `(^| )${titlePattern(t)}`),
+      ...suite.files.map((f) => filePattern('api', f, isFolder(f))),
+    ];
+    apiProject.grep = include.length > 0 ? include.map((p) => new RegExp(p)) : /$^/;
+  }
+
+  return [...browserProjectList, apiProject];
 }

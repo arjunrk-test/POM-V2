@@ -14,7 +14,9 @@
     "suite": "node scripts/run-suite.js",
     "send-report": "node scripts/send-report.js",
     "report": "playwright show-report",
-    "codegen": "playwright codegen"
+    "codegen": "playwright codegen",
+    "test:api": "playwright test --project=api",
+    "api:start": "node api-server/server.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
-    "nodemailer": "^10.0.13"
+    "nodemailer": "^10.0.13",
+    "swagger-ui-dist": "^5.33.1"
   }
 }

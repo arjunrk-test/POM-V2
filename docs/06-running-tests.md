@@ -21,6 +21,8 @@ All commands below are run from the project folder in a terminal (VS Code: **Ter
 | `npm run test:list` | `playwright test --list` | See which tests run in which browser, without running them |
 | `npm run test:chrome` | `playwright test --project=chrome` | Run only the Chrome tests |
 | `npm run test:edge` | `playwright test --project=edge` | Run only the Edge tests |
+| `npm run test:api` | `playwright test --project=api` | Run only the API tests |
+| `npm run api:start` | `node api-server/server.js` | Start the demo API yourself (Swagger at http://localhost:3001/docs) |
 | `npm run test:headed` | `playwright test --headed` | Run with the browser windows visible |
 | `npm run test:ui` | `playwright test --ui` | Open Playwright's UI mode (see below) |
 | `npm run test:debug` | `playwright test --debug` | Run step by step in the Playwright Inspector |
@@ -66,6 +68,7 @@ npx playwright test -g "@smoke"
 ```powershell
 npx playwright test --project=chrome
 npx playwright test --project=edge
+npx playwright test --project=api      # API tests (no browser)
 ```
 This only narrows: a test that `browsers.json` assigns to Edge only won't run with `--project=chrome`.
 

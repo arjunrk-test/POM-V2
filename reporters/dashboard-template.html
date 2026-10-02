@@ -296,6 +296,9 @@ function countBy(tests) {
   for (const t of tests) c[t.status]++;
   return c;
 }
+/** The method folder of an API test: "api/get/users.get.spec.js" → "get". */
+const apiGroup = (t) => t.file.split('/')[1] ?? 'other';
+
 function groupBy(tests, key) {
   const map = new Map();
   for (const t of tests) {
@@ -323,6 +326,7 @@ function render() {
   const title = DATA.run.suite ? `${esc(DATA.project.name)} <span class="suite">· ${esc(DATA.run.suite)} suite</span>` : esc(DATA.project.name);
   document.title = `${DATA.project.name}${DATA.run.suite ? ` · ${DATA.run.suite}` : ''}: ${label}`;
   const env = DATA.environment;
+  const hasApi = tests.some((t) => t.browser === 'api');
 
   app.innerHTML = `
   <div class="topbar">
@@ -359,7 +363,8 @@ function render() {
       <div class="section-head"><h2>Results at a glance</h2><span class="hint">Hover for details · click a bar to filter the test list</span></div>
       <div class="charts">
         <div class="card card-pad chart"><h3>Overall result</h3><div class="sub">${c.total} test run${c.total === 1 ? '' : 's'} across ${env.browsers.length} browser${env.browsers.length === 1 ? '' : 's'}</div><div id="ch-donut"></div></div>
-        <div class="card card-pad chart"><h3>Results by browser</h3><div class="sub">Test runs per browser, split by result</div>${legendHtml()}<div id="ch-browser"></div></div>
+        <div class="card card-pad chart"><h3>${hasApi ? 'Results by browser / API' : 'Results by browser'}</h3><div class="sub">Test runs per ${hasApi ? 'project' : 'browser'}, split by result</div>${legendHtml()}<div id="ch-browser"></div></div>
+        ${hasApi ? `<div class="card card-pad chart"><h3>API tests by method</h3><div class="sub">API test runs per method folder (tests/api/&lt;method&gt;/), split by result</div>${legendHtml()}<div id="ch-api"></div></div>` : ''}
         <div class="card card-pad chart"><h3>Results by spec file</h3><div class="sub">Test runs per file, split by result</div>${legendHtml()}<div id="ch-file"></div></div>
         <div class="card card-pad chart"><h3>Slowest tests</h3><div class="sub">Total time per test run, including retries</div><div id="ch-slow"></div></div>
         ${tests.some((t) => t.tags.length) ? `<div class="card card-pad chart"><h3>Results by tag</h3><div class="sub">Test runs per tag, split by result</div>${legendHtml()}<div id="ch-tag"></div></div>` : ''}
@@ -486,6 +491,14 @@ function renderCharts() {
   const byFile = [...groupBy(tests, (t) => t.file)].map(([name, list]) => ({ label: name, counts: countBy(list), filter: { file: name } }))
     .sort((a, b) => b.counts.failed - a.counts.failed || b.counts.total - a.counts.total);
   stackedBars(document.getElementById('ch-file'), byFile);
+  const apiEl = document.getElementById('ch-api');
+  if (apiEl) {
+    const order = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'flows'];
+    const groups = [...groupBy(tests.filter((t) => t.browser === 'api'), apiGroup)]
+      .sort(([a], [b]) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
+      .map(([group, list]) => ({ label: group === 'flows' ? 'Flows' : group.toUpperCase(), counts: countBy(list), filter: { q: `api/${group}/` } }));
+    stackedBars(apiEl, groups);
+  }
   const tagEl = document.getElementById('ch-tag');
   if (tagEl) {
     const tags = new Map();
@@ -753,7 +766,7 @@ function detailHtml(t) {
         <dl class="kv">
           <dt>Test</dt><dd>${esc(fullTitle(t))}</dd>
           <dt>File</dt><dd>${esc(t.file)}:${t.line}</dd>
-          <dt>Browser</dt><dd>${esc(t.browser)}</dd>
+          <dt>${t.browser === 'api' ? 'Project' : 'Browser'}</dt><dd>${esc(t.browser === 'api' ? 'api (no browser)' : t.browser)}</dd>
           <dt>Result</dt><dd>${statusChip(t.status)}</dd>
           <dt>This attempt</dt><dd>${esc(a.status)} · ${esc(dur(a.duration))} · worker ${a.lane + 1}</dd>
           <dt>Started</dt><dd>${esc(when(a.start))}</dd>
@@ -792,6 +805,7 @@ function applyFilter(el) {
   if (d.filterBrowser) state.browser = d.filterBrowser;
   if (d.filterFile) state.file = d.filterFile;
   if (d.filterTag) state.tag = d.filterTag;
+  if (d.filterQ) state.q = d.filterQ;
   renderTable();
   if (!el.closest('#tests')) document.getElementById('tests').scrollIntoView({ behavior: 'smooth' });
 }
@@ -834,7 +848,7 @@ function bindGlobal() {
   document.addEventListener('click', (e) => {
     const show = e.target.closest?.('[data-show-test]');
     if (show) { showTest(show.getAttribute('data-show-test')); return; }
-    const filter = e.target.closest?.('[data-filter-status],[data-filter-browser],[data-filter-file],[data-filter-tag]');
+    const filter = e.target.closest?.('[data-filter-status],[data-filter-browser],[data-filter-file],[data-filter-tag],[data-filter-q]');
     if (filter) applyFilter(filter);
   });
   let resize;
