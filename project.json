@@ -9,7 +9,7 @@
     "enabled": true,
     "sendOn": "always",
     "from": "QA Automation <arjun.s@mxtechies.com>",
-    "to": ["qa-lead@example.com", "dev-team@example.com", "arjun.s@mxtechies.com", "kavi.p@mxtechies.com"],
+    "to": ["qa-lead@example.com", "dev-team@example.com", "arjun.s@mxtechies.com", "kavi.p@mxtechies.com", "jayaram@mxtechies.com"],
     "cc": [],
     "bcc": [],
     "subjectPrefix": "[OrangeHRM QA]",
@@ -21,6 +21,21 @@
       "host": "smtp.office365.com",
       "port": 587,
       "secure": false
+    }
+  },
+
+  "teams": {
+    "enabled": true,
+    "project": "rmhubqa",
+    "historySize": 50,
+    "retries": 3,
+    "timeoutMs": 15000,
+    "projects": {
+      "rmhubqa": {
+        "displayName": "RM HUB - QA",
+        "webhookUrlEnv": "TEAMS_RM_HUB_QA_WEBHOOK_URL",
+        "reportUrl": ""
+      }
     }
   }
 }

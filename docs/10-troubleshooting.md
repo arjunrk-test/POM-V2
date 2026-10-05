@@ -122,6 +122,10 @@ Two steps files define the same step name. Rename one.
 ### API test fails only when run with others
 Tests run in parallel against the same server. Make sure the test creates its own data (`newUser()`, `{{unique}}`) and never changes the three start-up users (ids 1–3).
 
+## Microsoft Teams
+
+See the troubleshooting table in [Teams reporting](14-teams-reporting.md#troubleshooting). Teams problems never change the test result: look for lines starting with `[Teams]` in the output.
+
 ## Reports
 
 ### `npx playwright show-report` says no report found
@@ -164,7 +168,7 @@ One of the addresses in `to`/`cc`/`bcc` doesn't exist (for example a leftover `@
 The console said `Email: charts could not be drawn`: no browser could be started to draw them (install Chrome or Edge). If the console didn't say that, check `"charts": true` in `project.json`.
 
 ### I fixed the email problem; how do I send the report without re-running?
-`npm run send-report -- <suite>` sends the latest results of that suite.
+`npm run notify -- <suite> --no-teams` sends the email for the latest results of that suite (drop `--no-teams` to re-send the Teams card too; a card that was already posted is not posted twice).
 
 ## Still stuck?
 

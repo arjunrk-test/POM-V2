@@ -9,6 +9,7 @@ The framework tests the **OrangeHRM** web application. It's built on [Playwright
 - **Reports**: a colourful dashboard with charts and a timeline, plus HTML, JUnit XML and JSON for every suite run.
 - **Email reports** with colour charts, sent automatically to the project's mailing list.
 - **API testing**: a demo REST API with Swagger docs, tests organised by HTTP method, and **flows** that link requests across methods.
+- **Microsoft Teams reporting**: every suite run posts a result card to the project's Teams channel.
 
 ## Where to start
 
@@ -29,6 +30,7 @@ If you are new, read these in order:
 | 11 | [API testing](11-api-testing.md) | What API testing is, the folder per method, writing API tests, running the API suite |
 | 12 | [API server and Swagger](12-api-server-and-swagger.md) | The demo API, what Swagger/OpenAPI is, using the Swagger page |
 | 13 | [API flows](13-api-flows.md) | Linking requests from different methods into one scenario (POST → GET → DELETE) |
+| 14 | [Teams reporting](14-teams-reporting.md) | Posting run results to a Microsoft Teams channel: setup, Run IDs, history, adding projects |
 
 ## Quick reference
 
@@ -44,6 +46,8 @@ npm test                                 # run every test
 .\suite.bat smoke api                    # run chosen suites one after another, one combined email
 npm run test:api                         # run all API tests (no suite)
 npm run api:start                        # start the demo API; Swagger UI at http://localhost:3001/docs
+npm run test:teams                       # send a sample result card to the Teams channel
+.\suite.bat smoke --no-teams             # run without posting to Teams
 start reports/smoke/dashboard.html               # open the dashboard of the last smoke run
 npx playwright show-report reports/smoke/html   # open the Playwright HTML report (traces)
 ```
@@ -62,4 +66,4 @@ npx playwright show-report reports/smoke/html   # open the Playwright HTML repor
 | `tests/api/<method>/*.steps.js` | Adding reusable API requests (steps) |
 | `tests/api/flows/*.flow.json` | Linking API steps into a flow |
 | `utilities/globalApi.js` | Adding an API endpoint |
-| `.env.local` | Your SMTP login (on your machine only, never committed) |
+| `.env.local` | Your SMTP login and Teams webhook URL (on your machine only, never committed) |

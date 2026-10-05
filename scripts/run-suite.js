@@ -6,11 +6,15 @@
 //   suite.bat smoke --headed           extra arguments are passed to Playwright
 //   suite.bat smoke --no-email         don't send the report email
 //   suite.bat smoke --email-dry-run    build the email but don't send it
+//   suite.bat smoke --no-teams         don't post to Microsoft Teams
+//   suite.bat smoke --teams-dry-run    build the Teams card (reports/teams/) but don't post it
 //
 // Before running anything, it checks that every test and file listed in each suite
 // matches a real test, so a typo fails loudly instead of a test silently not running.
 // Each suite writes its reports to reports/<name>/. One suite sends its own email;
-// several suites send ONE combined email at the end.
+// several suites send ONE combined email at the end. The result is also posted to
+// Microsoft Teams when enabled (scripts/notifications/). Notifications never change
+// the exit code, which always reflects the tests.
 
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -19,10 +23,10 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const SUITES_DIR = path.join(ROOT, 'test-plans', 'suites');
 const PLAYWRIGHT_CLI = require.resolve('@playwright/test/cli');
-const { sendReport, sendCombinedReport } = require('./send-report');
+const { notifyRunComplete } = require('./notifications/notification-manager');
 const { buildCombinedDashboard } = require('./combine-dashboards');
 
-const OWN_FLAGS = ['--no-email', '--email-dry-run', '--all'];
+const OWN_FLAGS = ['--no-email', '--email-dry-run', '--no-teams', '--teams-dry-run', '--all'];
 const args = process.argv.slice(2);
 // Suite names come first; everything from the first option onwards is for Playwright
 // (so `-g "log in"` never mistakes "log in" for a suite name).
@@ -37,8 +41,8 @@ const suiteNames = options.includes('--all') ? available : [...new Set(named)];
 
 function usage(message) {
   if (message) console.error(message);
-  console.error('Usage: suite.bat <suite> [<suite> ...] [--no-email] [--email-dry-run] [playwright options]');
-  console.error('       suite.bat --all [--no-email] [--email-dry-run] [playwright options]');
+  console.error('Usage: suite.bat <suite> [<suite> ...] [--no-email] [--email-dry-run] [--no-teams] [--teams-dry-run] [playwright options]');
+  console.error('       suite.bat --all [--no-email] [--email-dry-run] [--no-teams] [--teams-dry-run] [playwright options]');
   console.error(`Available suites: ${available.join(', ') || '(none)'}`);
   process.exit(1);
 }
@@ -60,7 +64,18 @@ const normalize = (/** @type {string} */ file) => file.replace(/\\/g, '/');
 function check(suiteName) {
   const suite = JSON.parse(fs.readFileSync(path.join(SUITES_DIR, `${suiteName}.json`), 'utf-8'));
   const listing = playwright(suiteName, ['--list', '--reporter=json'], { encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 });
-  if (listing.status !== 0) return { ok: false, message: listing.stderr || listing.stdout };
+  if (listing.status !== 0) {
+    // With --reporter=json the reason is inside the JSON output, not in plain text.
+    let reason = (listing.stderr ?? '').trim();
+    try {
+      const errors = (JSON.parse(listing.stdout).errors ?? []).map((e) => e.message);
+      if (errors.length) reason = errors.join('\n');
+    } catch {
+      // not JSON: keep stderr
+    }
+    reason = reason.replace(/\u001b\[[0-9;]*m/g, '') || 'Playwright exited with an error while listing the tests.';
+    return { ok: false, message: `Suite "${suiteName}" could not be listed: ${reason}` };
+  }
 
   /** @type {{ project: string, file: string, title: string }[]} */
   const found = [];
@@ -94,9 +109,21 @@ function check(suiteName) {
 // 1. Check every suite before running any of them.
 const checked = suiteNames.map((name) => ({ name, ...check(name) }));
 const broken = checked.filter((c) => !c.ok);
+const notifyOptions = {
+  email: !options.includes('--no-email'),
+  teams: !options.includes('--no-teams'),
+  emailDryRun: options.includes('--email-dry-run'),
+  teamsDryRun: options.includes('--teams-dry-run'),
+};
 if (broken.length) {
   for (const b of broken) console.error(b.message.trimEnd());
-  process.exit(1);
+  // Nothing ran: no email, but Teams gets an EXECUTION ERROR card (useful for scheduled runs).
+  notifyRunComplete({
+    ...notifyOptions,
+    suiteNames,
+    error: `The run could not start: ${broken.map((b) => b.message.split('\n')[0]).join(' ')}`,
+  }).then(() => process.exit(1));
+  return;
 }
 
 // 2. Run the suites one after another. A failing suite doesn't stop the next one.
@@ -127,13 +154,15 @@ if (results.length > 1) {
   if (combined) console.log(`\nConsolidated dashboard: reports/all-suites/dashboard.html  (every suite in one report)`);
 }
 
-// 3. Email the results: one email per run (combined when several suites ran).
-// A failed email is reported but doesn't change the exit code, which reflects the tests.
+// 3. Notify: email (one per run, combined when several suites ran) and Microsoft Teams.
+// Notification failures are logged but never change the exit code, which reflects the tests.
 const exitCode = results.some((r) => r.status !== 0) ? 1 : 0;
 (async () => {
-  const dryRun = options.includes('--email-dry-run');
-  if (options.includes('--no-email')) console.log('Email: skipped (--no-email).');
-  else if (results.length === 1) await sendReport(results[0].name, { dryRun });
-  else await sendCombinedReport(results.map((r) => r.name), { dryRun });
+  console.log('');
+  await notifyRunComplete({
+    ...notifyOptions,
+    suiteNames: results.map((r) => r.name),
+    exitCodes: Object.fromEntries(results.map((r) => [r.name, r.status])),
+  });
   process.exit(exitCode);
 })();

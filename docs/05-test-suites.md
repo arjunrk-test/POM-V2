@@ -128,6 +128,8 @@ Other forms:
 |---|---|
 | `.\suite.bat smoke` | Run the suite, save reports, send the email |
 | `.\suite.bat smoke --no-email` | Same, but don't send the email |
+| `.\suite.bat smoke --no-teams` | Run the suite without posting to Microsoft Teams ([Teams reporting](14-teams-reporting.md)) |
+| `.\suite.bat smoke --teams-dry-run` | Build the Teams card in `reports/teams/` without posting it |
 | `.\suite.bat smoke --email-dry-run` | Build the email (preview at `reports/smoke/email.html`) but don't send it |
 | `.\suite.bat smoke --headed` | Show the browsers while the tests run |
 | `.\suite.bat smoke --project=edge` | Run only the suite's Edge tests |

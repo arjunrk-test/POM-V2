@@ -20,6 +20,7 @@ On top of plain Playwright, this project adds:
 | Dashboard report | A colourful one-page report with charts, a timeline and every test's details | `reporters/dashboard-reporter.js`, `reporters/dashboard-template.html` |
 | Email reports | HTML email with charts and the reports attached | `project.json`, `scripts/send-report.js`, `scripts/report-charts.js` |
 | API testing | Tests for REST APIs, one folder per HTTP method, plus flows that link methods | `tests/api/`, `utilities/globalApi.js` |
+| Teams reporting | Posts each suite run's result to the project's Microsoft Teams channel, with Run IDs and history | `scripts/notifications/`, `project.json` → `teams` |
 | Demo API + Swagger | A practice REST API with interactive documentation, started automatically for tests | `api-server/` |
 
 ### If you come from Selenium + TestNG
@@ -91,6 +92,7 @@ POM V2/
 │   └── dashboard-template.html        The dashboard page (layout, styles, charts)
 ├── scripts/
 │   ├── run-suite.js                   The suite runner (what suite.bat calls)
+│   ├── notifications/                 Email + Microsoft Teams notifications, Run IDs, run history
 │   ├── send-report.js                 Builds and sends the report email
 │   └── report-charts.js               Draws the charts used in the email
 ├── test-plans/

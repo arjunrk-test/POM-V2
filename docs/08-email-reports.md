@@ -12,7 +12,7 @@ After every suite run, the results are emailed to the project's mailing list. Th
 
 **Body**, top to bottom:
 1. **Title and headline:** project, suite, and a green *PASSED* or red *FAILED* line with the counts.
-2. **Run details:** environment, application URL, start time, duration.
+2. **Run details:** environment, application URL, start time, duration, and the **Run ID** (the same one shown on the [Teams card](14-teams-reporting.md#run-id)).
 3. **Charts:**
    - *Overall result*: a donut with the pass rate in the middle, plus passed / failed / flaky / skipped counts and percentages.
    - *Results by browser*: one bar per browser, split by result.
@@ -53,8 +53,8 @@ The consolidated dashboard, the email preview and the chart images are saved in 
 
 To re-send the combined email for the last runs of several suites without running them again:
 ```powershell
-npm run send-report -- smoke regression api
-npm run send-report -- smoke regression api --dry-run
+npm run notify -- smoke regression api --no-teams
+npm run notify -- smoke regression api --no-teams --dry-run
 ```
 
 ## `project.json`
@@ -168,8 +168,8 @@ node -e "process.loadEnvFile('.env.local'); const s=require('./project.json').em
 | `.\suite.bat smoke` | Runs the suite and sends the email |
 | `.\suite.bat smoke --no-email` | Runs the suite, no email |
 | `.\suite.bat smoke --email-dry-run` | Runs the suite and builds the email, but doesn't send it. Open `reports/smoke/email.html` to preview. |
-| `npm run send-report -- smoke` | Sends the email for the **last** smoke run again, without re-running tests (e.g. after fixing the password or the mailing list) |
-| `npm run send-report -- smoke --dry-run` | Rebuilds the preview for the last smoke run without sending |
+| `npm run notify -- smoke --no-teams` | Sends the email for the **last** smoke run again, without re-running tests (e.g. after fixing the password or the mailing list) |
+| `npm run notify -- smoke --no-teams --dry-run` | Rebuilds the preview for the last smoke run without sending |
 
 ## What you'll see in the console
 
@@ -184,14 +184,14 @@ node -e "process.loadEnvFile('.env.local'); const s=require('./project.json').em
 | `Email: NOT sent. Invalid login: 535 5.7.139 Authentication unsuccessful...` | Wrong password, or password login isn't allowed. See [Which password?](#which-password-microsoft-365) |
 | `Email: NOT sent. ... "email.to" needs at least one address` | `to` is empty in `project.json`. |
 | `Email: NOT sent. ... "email.sendOn" must be "always" or "failure"` | Typo in `sendOn`. |
-| `Email: NOT sent. No results found at ...results.json` | `send-report` was run for a suite that hasn't been run yet. |
+| `Email: NOT sent. No results found at ...results.json` | `npm run notify` was run for a suite that hasn't been run yet. |
 | `Email: charts could not be drawn, sending without them.` | No browser could be started to draw the charts; the email is still sent, with tables only. |
 
 **An email failure never changes the run's result.** If the tests passed but the email failed, the run still exits with 0; fix the problem and use `npm run send-report -- <suite>` to send it.
 
 ## How it works (for the curious)
 
-1. `scripts/run-suite.js` calls `sendReport(suite)` from `scripts/send-report.js` after the tests finish.
+1. `scripts/run-suite.js` calls the notification manager (`scripts/notifications/`) after the tests finish, which calls `sendReport(suite)` from `scripts/send-report.js`.
 2. `send-report.js` reads `reports/<suite>/results.json` and counts passed / failed / flaky / skipped tests in total and per browser, and collects the failed tests and every test's duration.
 3. `scripts/report-charts.js` draws each chart as SVG, opens it in a headless browser (installed Chrome, else Edge, else Playwright's Chromium) and saves a screenshot as PNG in `reports/<suite>/charts/`. This is done because email programs don't run JavaScript and Outlook can't display SVG, but every email program shows images.
 4. The images are embedded in the email (as "inline" images referenced by `cid:`), so they appear in the body rather than as attachments, and recipients don't need to click "download pictures".
@@ -200,4 +200,4 @@ node -e "process.loadEnvFile('.env.local'); const s=require('./project.json').em
 ## Limits to know
 
 - The attached dashboard includes screenshots (if tests take them), but neither attachment includes **traces**. Traces stay on the machine that ran the suite, in `reports/<suite>/html/data/`, and the dashboard's *Open in Playwright report* links only work from that folder. To share them, host the reports somewhere (shared drive, CI) and set `reportUrl`.
-- Every run of a suite overwrites `reports/<suite>/`, so `send-report` can only re-send the latest run.
+- Every run of a suite overwrites `reports/<suite>/`, so `npm run notify` can only re-send the latest run.

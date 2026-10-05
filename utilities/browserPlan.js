@@ -29,13 +29,13 @@ import path from 'path';
 import { devices } from '@playwright/test';
 
 /** Every browser the plan may refer to, keyed by the name used in browsers.json. */
-export const BROWSERS = {
+const BROWSERS = {
   chrome: { ...devices['Desktop Chrome'], channel: 'chrome' },
   edge: { ...devices['Desktop Edge'], channel: 'msedge' },
 };
 
-export const BROWSERS_FILE = 'test-plans/browsers.json';
-export const SUITES_DIR = 'test-plans/suites';
+const BROWSERS_FILE = 'test-plans/browsers.json';
+const SUITES_DIR = 'test-plans/suites';
 
 /**
  * @typedef {{ defaultBrowsers: string[], tests: Record<string, string[]> }} BrowserPlan
@@ -56,7 +56,7 @@ const filePattern = (project, file, folder = false) =>
   `^${escapeRegExp(project)} ${file.replace(/[\\/]+$/, '').split(/[\\/]/).map(escapeRegExp).join('[\\\\/]')}${folder ? '[\\\\/]' : ' '}`;
 
 /** API tests live here (relative to the tests folder) and run in the "api" project, not in a browser. */
-export const API_TEST_DIR = 'api';
+const API_TEST_DIR = 'api';
 
 /** @param {string} file */
 const readJson = (file) => {
@@ -71,7 +71,7 @@ const readJson = (file) => {
  * @param {string} rootDir
  * @returns {BrowserPlan}
  */
-export function loadBrowserPlan(rootDir) {
+function loadBrowserPlan(rootDir) {
   const planPath = path.resolve(rootDir, BROWSERS_FILE);
   const plan = readJson(planPath);
   const defaultBrowsers = plan.defaultBrowsers ?? [];
@@ -96,7 +96,7 @@ export function loadBrowserPlan(rootDir) {
 }
 
 /** @param {string} rootDir */
-export function listSuites(rootDir) {
+function listSuites(rootDir) {
   const dir = path.resolve(rootDir, SUITES_DIR);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => path.basename(f, '.json'));

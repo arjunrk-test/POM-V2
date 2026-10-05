@@ -29,7 +29,7 @@ All commands below are run from the project folder in a terminal (VS Code: **Ter
 | `npm run report` | `playwright show-report` | Open the last plain-run HTML report |
 | `npm run codegen` | `playwright codegen` | Record a test by clicking in a browser |
 | `npm run suite -- <name>` | `node scripts/run-suite.js <name>` | Run a suite (same as `suite.bat`) |
-| `npm run send-report -- <name>` | `node scripts/send-report.js <name>` | Re-send the last email of a suite |
+| `npm run notify -- <name>` | `node scripts/notifications/notification-manager.js <name>` | Re-send the email / Teams card for a suite's last results |
 
 To pass extra options through an npm script, put them after `--`:
 

@@ -1,6 +1,5 @@
-// Emails suite results to the people listed in project.json: one suite's results,
-// or (sendCombinedReport, or several names on the command line) one combined email
-// for several suites, e.g. node scripts/send-report.js smoke regression api
+// Emails suite results to the people listed in project.json: one suite's results
+// (sendReport), or one combined email for several suites (sendCombinedReport).
 // Called automatically by run-suite.js after a suite run; can also be run on its own
 // to (re)send the last results of a suite:
 //   node scripts/send-report.js smoke
@@ -137,6 +136,7 @@ function buildHtml(project, suiteName, summary, notes, charts, chartSrc) {
   ${row('Application', project.applicationUrl ?? '-')}
   ${row('Started', summary.startTime.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}
   ${row('Duration', formatDuration(summary.durationMs))}
+  ${summary.runId ? row('Run ID', summary.runId) : ''}
 </table>
 
 ${charts.map((c) => `<p style="margin:0 0 20px;"><img src="${chartSrc(c)}" width="${c.width}" alt="${escapeHtml(c.alt)}" style="display:block;max-width:100%;height:auto;border:0;"></p>`).join('')}
@@ -193,10 +193,10 @@ function collectAttachments(project, reportDir, suiteName, notes) {
 
 /**
  * @param {string} suiteName
- * @param {{ dryRun?: boolean }} [options]
+ * @param {{ dryRun?: boolean, runId?: string }} [options]
  * @returns {Promise<boolean>} true if sent (or skipped on purpose), false on error
  */
-async function sendReport(suiteName, { dryRun = false } = {}) {
+async function sendReport(suiteName, { dryRun = false, runId } = {}) {
   try {
     const project = loadProject();
     const email = project.email ?? {};
@@ -212,6 +212,7 @@ async function sendReport(suiteName, { dryRun = false } = {}) {
     }
 
     const summary = summarize(resultsFile);
+    summary.runId = runId;
     if (email.sendOn === 'failure' && summary.failed === 0) {
       console.log('Email: all tests passed and sendOn is "failure", not sending.');
       return true;
@@ -317,6 +318,7 @@ function buildCombinedHtml(project, combined, notes, charts, chartSrc) {
   ${row('Application', project.applicationUrl ?? '-')}
   ${row('Started', combined.startTime.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}
   ${row('Total duration', formatDuration(combined.durationMs))}
+  ${combined.runId ? row('Run ID', combined.runId) : ''}
 </table>
 
 ${charts.map((c) => `<p style="margin:0 0 20px;"><img src="${chartSrc(c)}" width="${c.width}" alt="${escapeHtml(c.alt)}" style="display:block;max-width:100%;height:auto;border:0;"></p>`).join('')}
@@ -342,12 +344,40 @@ ${notes.map((n) => `<p style="color:#666;">${escapeHtml(n)}</p>`).join('')}
 }
 
 /**
+ * Reads the results of several suites and adds them up. Used by the combined email
+ * and by the Teams reporter, so both always show the same numbers.
+ * Suites without a results.json are listed in `missing`.
+ * @param {string[]} suiteNames
+ */
+function combineSummaries(suiteNames) {
+  const suites = [];
+  const missing = [];
+  for (const name of suiteNames) {
+    const resultsFile = path.join(ROOT, 'reports', name, 'results.json');
+    if (!fs.existsSync(resultsFile)) { missing.push(name); continue; }
+    suites.push({ name, summary: summarize(resultsFile) });
+  }
+  const sum = (key) => suites.reduce((n, s) => n + s.summary[key], 0);
+  const combined = {
+    total: sum('total'), passed: sum('passed'), failed: sum('failed'), flaky: sum('flaky'), skipped: sum('skipped'),
+    startTime: new Date(suites.length ? Math.min(...suites.map((s) => s.summary.startTime.getTime())) : Date.now()),
+    durationMs: sum('durationMs'),
+    suites: suites.map(({ name, summary: s }) => ({
+      name, total: s.total, passed: s.passed, failed: s.failed, flaky: s.flaky, skipped: s.skipped, durationMs: s.durationMs,
+    })),
+    failures: suites.flatMap(({ name, summary }) => summary.failures.map((f) => ({ ...f, suite: name }))),
+    missing,
+  };
+  return { suites, missing, combined };
+}
+
+/**
  * Sends ONE email covering several suites that ran one after another.
  * @param {string[]} suiteNames
- * @param {{ dryRun?: boolean }} [options]
+ * @param {{ dryRun?: boolean, runId?: string }} [options]
  * @returns {Promise<boolean>}
  */
-async function sendCombinedReport(suiteNames, { dryRun = false } = {}) {
+async function sendCombinedReport(suiteNames, { dryRun = false, runId } = {}) {
   try {
     const project = loadProject();
     const email = project.email ?? {};
@@ -356,26 +386,9 @@ async function sendCombinedReport(suiteNames, { dryRun = false } = {}) {
       return true;
     }
 
-    const suites = [];
-    const missing = [];
-    for (const name of suiteNames) {
-      const resultsFile = path.join(ROOT, 'reports', name, 'results.json');
-      if (!fs.existsSync(resultsFile)) { missing.push(name); continue; }
-      suites.push({ name, summary: summarize(resultsFile) });
-    }
+    const { suites, missing, combined } = combineSummaries(suiteNames);
     if (!suites.length) throw new Error(`No results found for any of: ${suiteNames.join(', ')}. Run the suites first.`);
-
-    const sum = (key) => suites.reduce((n, s) => n + s.summary[key], 0);
-    const combined = {
-      total: sum('total'), passed: sum('passed'), failed: sum('failed'), flaky: sum('flaky'), skipped: sum('skipped'),
-      startTime: new Date(Math.min(...suites.map((s) => s.summary.startTime.getTime()))),
-      durationMs: sum('durationMs'),
-      suites: suites.map(({ name, summary: s }) => ({
-        name, total: s.total, passed: s.passed, failed: s.failed, flaky: s.flaky, skipped: s.skipped, durationMs: s.durationMs,
-      })),
-      failures: suites.flatMap(({ name, summary }) => summary.failures.map((f) => ({ ...f, suite: name }))),
-      missing,
-    };
+    combined.runId = runId;
 
     if (email.sendOn === 'failure' && combined.failed === 0 && missing.length === 0) {
       console.log('Email: all tests passed and sendOn is "failure", not sending.');
@@ -431,17 +444,4 @@ async function sendCombinedReport(suiteNames, { dryRun = false } = {}) {
   }
 }
 
-module.exports = { sendReport, sendCombinedReport };
-
-if (require.main === module) {
-  const args = process.argv.slice(2);
-  const names = args.filter((a) => !a.startsWith('-'));
-  const dryRun = args.includes('--dry-run');
-  if (!names.length) {
-    console.error('Usage: node scripts/send-report.js <suite> [<suite> ...] [--dry-run]');
-    process.exit(1);
-  }
-  // One suite: its own email. Several: one combined email.
-  const send = names.length === 1 ? sendReport(names[0], { dryRun }) : sendCombinedReport(names, { dryRun });
-  send.then((ok) => process.exit(ok ? 0 : 1));
-}
+module.exports = { sendReport, sendCombinedReport, combineSummaries, loadProject };

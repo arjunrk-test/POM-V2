@@ -12,12 +12,13 @@
     "test:edge": "playwright test --project=edge",
     "test:list": "playwright test --list",
     "suite": "node scripts/run-suite.js",
-    "send-report": "node scripts/send-report.js",
     "report": "playwright show-report",
     "codegen": "playwright codegen",
     "test:api": "playwright test --project=api",
     "api:start": "node api-server/server.js",
-    "suite:all": "node scripts/run-suite.js --all"
+    "suite:all": "node scripts/run-suite.js --all",
+    "test:teams": "node scripts/notifications/teams-test.js",
+    "notify": "node scripts/notifications/notification-manager.js"
   },
   "keywords": [],
   "author": "",

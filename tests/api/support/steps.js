@@ -20,7 +20,7 @@ import { optionsSteps } from '../options/users.options.steps';
 const GROUPS = [getSteps, postSteps, putSteps, patchSteps, deleteSteps, headSteps, optionsSteps];
 
 /** @type {Record<string, Step>} */
-export const STEPS = {};
+const STEPS = {};
 for (const group of GROUPS) {
   for (const [name, step] of Object.entries(group)) {
     if (STEPS[name]) throw new Error(`Two steps are named "${name}". Step names must be unique across all method folders.`);
